@@ -34,22 +34,22 @@ export default function OrderExtractor({ onClose, onExtract }: OrderExtractorPro
 
     try {
       const worker = await createWorker('spa+eng', 1, {
-        logger: (m: any) => {
+        logger: (m) => {
           if (m.progress) {
             setProgress(Math.round(m.progress * 100));
           }
         },
       });
 
-      const response = await worker.recognize(image);
-      const text = response.data.text;
+      const result = await worker.recognize(image);
+      const text = result.data.text;
       await worker.terminate();
 
       // Parsear el texto en líneas/items
       const lines = text.split('\n')
-        .map((line: string) => line.trim())
-        .filter((line: string) => line.length > 0)
-        .map((line: string) => {
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .map(line => {
           // Remover números al inicio si existen (1. 2. 3. etc)
           return line.replace(/^\d+[\.\)]\s*/, '');
         });
@@ -73,6 +73,10 @@ export default function OrderExtractor({ onClose, onExtract }: OrderExtractorPro
   const handleItemDelete = (index: number) => {
     const newItems = extractedItems.filter((_, i) => i !== index);
     setExtractedItems(newItems);
+  };
+
+  const handleItemAdd = () => {
+    setExtractedItems([...extractedItems, '']);
   };
 
   const handleConfirm = () => {
@@ -170,9 +174,9 @@ export default function OrderExtractor({ onClose, onExtract }: OrderExtractorPro
                 onClick={extractText}
                 disabled={extracting}
                 className="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2"
-                style={{ 
-                  backgroundColor: extracting ? 'var(--bg-tertiary)' : 'var(--accent)', 
-                  color: extracting ? 'var(--text-muted)' : 'white' 
+                style={{
+                  backgroundColor: extracting ? 'var(--bg-tertiary)' : 'var(--accent)',
+                  color: extracting ? 'var(--text-muted)' : 'white'
                 }}
               >
                 {extracting ? (
