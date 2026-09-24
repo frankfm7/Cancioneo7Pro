@@ -23,9 +23,9 @@ function AppContent() {
   const [previousHymnal, setPreviousHymnal] = useState<Hymnal | null>(null);
   const [previousPage, setPreviousPage] = useState<string>('home');
   const [songSource, setSongSource] = useState<{ type: 'list' | 'order' | 'hymnal' | 'search' | 'home', id?: string, name?: string } | null>(null);
-  const [selectedSetlistId, setSelectedSetlistId] = useState<string | null>(null);
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [editingSong, setEditingSong] = useState<Song | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [showAddHymnalModal, setShowAddHymnalModal] = useState(false);
 
   useEffect(() => {
@@ -38,68 +38,55 @@ function AppContent() {
       setSongSource(source);
       if (source.type === 'hymnal') {
         setPreviousHymnal(source as any);
-      } else if (source.type === 'list' && source.id) {
-        setSelectedSetlistId(source.id);
-      } else if (source.type === 'order' && source.id) {
-        setSelectedOrderId(source.id);
       }
     }
   }, []);
-  
+
   const handleSelectHymnal = useCallback((hymnal: Hymnal) => {
     setSelectedHymnal(hymnal);
     setPreviousHymnal(hymnal);
     setPreviousPage(currentPage);
   }, [currentPage]);
-  
+
   const handleBack = useCallback(() => {
     if (selectedSong) {
+      // Si estamos viendo una canción
       if (songSource) {
         if (songSource.type === 'hymnal' && previousHymnal) {
+          // Volver al himnario de donde venimos
           setSelectedSong(null);
           setSelectedHymnal(previousHymnal);
           setSongSource(null);
-        } else if (songSource.type === 'list') {
+        } else if (songSource.type === 'list' || songSource.type === 'order') {
+          // Volver a la lista u orden de donde venimos
           setSelectedSong(null);
-          setCurrentPage('setlists');
-        } else if (songSource.type === 'order') {
-          setSelectedSong(null);
-          setCurrentPage('orders');
+          setCurrentPage(songSource.type === 'list' ? 'setlists' : 'orders');
+          setSongSource(null);
         } else {
+          // Volver a la página anterior
           setSelectedSong(null);
           setCurrentPage(previousPage);
           setSongSource(null);
         }
       } else {
+        // Volver a la página anterior
         setSelectedSong(null);
         setCurrentPage(previousPage);
       }
     } else if (selectedHymnal) {
+      // Si estamos en un himnario, volver a la página anterior
       setSelectedHymnal(null);
       setPreviousHymnal(null);
       setCurrentPage(previousPage);
-    } else if (currentPage === 'setlists') {
-      if (selectedSetlistId) {
-        setSelectedSetlistId(null);
-        setSongSource(null);
-      } else {
-        setCurrentPage('home');
-      }
-    } else if (currentPage === 'orders') {
-      if (selectedOrderId) {
-        setSelectedOrderId(null);
-        setSongSource(null);
-      } else {
-        setCurrentPage('home');
-      }
     } else if (currentPage !== 'home') {
+      // Si estamos en otra página, volver a home
       setCurrentPage('home');
     }
     setEditingSong(null);
-  }, [selectedSong, selectedHymnal, previousHymnal, previousPage, currentPage, songSource, selectedSetlistId, selectedOrderId]);
-  
+  }, [selectedSong, selectedHymnal, previousHymnal, previousPage, currentPage, songSource]);
+
   const handleBackFromEditor = useCallback(() => { setEditingSong(null); }, []);
-  
+
   const handleNavigate = useCallback((page: string) => {
     setPreviousPage(currentPage);
     setCurrentPage(page);
@@ -108,6 +95,17 @@ function AppContent() {
     setPreviousHymnal(null);
     setEditingSong(null);
   }, [currentPage]);
+
+  const handleExport = useCallback(() => {
+    const data = JSON.stringify(state, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `cancionero7pro-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [state]);
 
   const handleImport = useCallback(() => {
     const input = document.createElement('input');
@@ -125,7 +123,7 @@ function AppContent() {
             window.location.reload();
           }
         } catch {
-          alert('Error al importar el archivo.');
+          alert('Error al importar el archivo. Verifica que sea un archivo JSON válido.');
         }
       };
       reader.readAsText(file);
@@ -133,21 +131,11 @@ function AppContent() {
     input.click();
   }, []);
 
-  const handleExport = useCallback(() => {
-    const data = JSON.stringify(state, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `cancionero7pro-backup-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [state]);
-
   if (showSplash) {
     return <SplashScreen onComplete={() => setShowSplash(false)} />;
   }
 
+  // Song Editor
   if (editingSong) {
     return (
       <Layout currentPage={currentPage} onNavigate={handleNavigate}
@@ -157,6 +145,7 @@ function AppContent() {
     );
   }
 
+  // Song View
   if (selectedSong) {
     return (
       <Layout currentPage={currentPage} onNavigate={handleNavigate}
@@ -166,11 +155,12 @@ function AppContent() {
     );
   }
 
+  // Hymnal View
   if (selectedHymnal) {
     return (
       <Layout currentPage={currentPage} onNavigate={handleNavigate}
               onImport={handleImport} onExport={handleExport} onAddHymnal={() => setShowAddHymnalModal(true)}>
-        <HymnalView hymnal={selectedHymnal} onSelectSong={(song) => handleSelectSong(song, { type: 'hymnal', id: selectedHymnal.id, name: selectedHymnal.name } as any)} onBack={handleBack} />
+        <HymnalView hymnal={selectedHymnal} onSelectSong={handleSelectSong} onBack={handleBack} />
       </Layout>
     );
   }
@@ -185,9 +175,9 @@ function AppContent() {
       case 'favorites':
         return <FavoritesPage onSelectSong={(song) => handleSelectSong(song, { type: 'home' })} />;
       case 'setlists':
-        return <SetlistsPage onSelectSong={(song) => handleSelectSong(song, { type: 'list' })} onBack={handleBack} initialSetlistId={selectedSetlistId} />;
+        return <SetlistsPage onSelectSong={(song) => handleSelectSong(song, { type: 'list' })} />;
       case 'orders':
-        return <OrdersPage onSelectSong={(song) => handleSelectSong(song, { type: 'order' })} onBack={handleBack} initialOrderId={selectedOrderId} />;
+        return <OrdersPage onSelectSong={(song) => handleSelectSong(song, { type: 'order' })} />;
       case 'tools':
         return <ToolsPage />;
       default:
