@@ -21,6 +21,7 @@ export default function SetlistsPage({ onSelectSong, onBack }: { onSelectSong: (
   const [songSearchQuery, setSongSearchQuery] = useState('');
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [showAddToListModal, setShowAddToListModal] = useState(false);
+  const [showSelectionMenu, setShowSelectionMenu] = useState(false);
 
   const editRef = useRef<HTMLDivElement>(null);
 
@@ -98,6 +99,24 @@ export default function SetlistsPage({ onSelectSong, onBack }: { onSelectSong: (
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [openMenuId]);
+
+  // Cerrar menú de selección al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('[data-selection-menu]')) {
+        setShowSelectionMenu(false);
+      }
+    };
+
+    if (showSelectionMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSelectionMenu]);
 
   const createSetlist = () => {
     if (newSetlistName.trim()) {
@@ -457,7 +476,7 @@ export default function SetlistsPage({ onSelectSong, onBack }: { onSelectSong: (
 
         {/* Selection Actions */}
         {selectionMode && (
-          <div className="flex flex-wrap items-center gap-2 p-3 rounded-xl" style={{ backgroundColor: 'var(--accent-light)', border: '1px solid var(--accent)' }}>
+          <div className="flex items-center gap-2 p-3 rounded-xl" style={{ backgroundColor: 'var(--accent-light)', border: '1px solid var(--accent)' }}>
             <button
               onClick={selectAllSongs}
               className="px-3 py-1.5 rounded-lg text-xs font-semibold"
@@ -471,63 +490,92 @@ export default function SetlistsPage({ onSelectSong, onBack }: { onSelectSong: (
                   {selectedItems.size} seleccionado(s)
                 </span>
                 <div className="flex-1" />
-                <div className="flex flex-wrap gap-2">
+                <div className="relative" data-selection-menu>
                   <button
-                    onClick={addSelectedToFavorites}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1"
-                    style={{ backgroundColor: 'var(--gold)', color: 'white' }}
-                    title="Agregar a favoritos"
-                  >
-                    <Star size={14} /> Favoritos
-                  </button>
-                  <button
-                    onClick={copySelectedItems}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1"
-                    style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}
-                    title="Copiar al portapapeles"
-                  >
-                    <Copy size={14} /> Copiar
-                  </button>
-                  <button
-                    onClick={() => setShowAddToListModal(true)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1"
+                    onClick={() => setShowSelectionMenu(!showSelectionMenu)}
+                    className="px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2"
                     style={{ backgroundColor: 'var(--accent)', color: 'white' }}
-                    title="Agregar a otra lista"
                   >
-                    <Music size={14} /> A Lista
+                    <MoreVertical size={16} /> Opciones
                   </button>
-                  <button
-                    onClick={() => setShowMoveModal(true)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1"
-                    style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}
-                    title="Mover a otro cancionero"
-                  >
-                    <ArrowRight size={14} /> Mover
-                  </button>
-                  <button
-                    onClick={shareSelectedItems}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1"
-                    style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}
-                    title="Compartir"
-                  >
-                    <Share2 size={14} /> Compartir
-                  </button>
-                  <button
-                    onClick={exportSelectedItems}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1"
-                    style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}
-                    title="Exportar como JSON"
-                  >
-                    <Download size={14} /> Exportar
-                  </button>
-                  <button
-                    onClick={removeSelectedItems}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1"
-                    style={{ backgroundColor: '#ef4444', color: 'white' }}
-                    title="Eliminar"
-                  >
-                    <Trash2 size={14} /> Eliminar
-                  </button>
+                  
+                  {showSelectionMenu && (
+                    <div
+                      className="absolute right-0 top-full mt-2 w-56 rounded-xl shadow-lg overflow-hidden z-50"
+                      style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)' }}
+                    >
+                      <button
+                        onClick={() => {
+                          addSelectedToFavorites();
+                          setShowSelectionMenu(false);
+                        }}
+                        className="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:opacity-80"
+                        style={{ color: 'var(--text-primary)' }}
+                      >
+                        <Star size={16} style={{ color: 'var(--gold)' }} /> Agregar a favoritos
+                      </button>
+                      <button
+                        onClick={() => {
+                          copySelectedItems();
+                          setShowSelectionMenu(false);
+                        }}
+                        className="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:opacity-80 border-t"
+                        style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
+                      >
+                        <Copy size={16} /> Copiar al portapapeles
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowAddToListModal(true);
+                          setShowSelectionMenu(false);
+                        }}
+                        className="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:opacity-80 border-t"
+                        style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
+                      >
+                        <Music size={16} /> Agregar a otra lista
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowMoveModal(true);
+                          setShowSelectionMenu(false);
+                        }}
+                        className="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:opacity-80 border-t"
+                        style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
+                      >
+                        <ArrowRight size={16} /> Mover a otro cancionero
+                      </button>
+                      <button
+                        onClick={() => {
+                          shareSelectedItems();
+                          setShowSelectionMenu(false);
+                        }}
+                        className="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:opacity-80 border-t"
+                        style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
+                      >
+                        <Share2 size={16} /> Compartir
+                      </button>
+                      <button
+                        onClick={() => {
+                          exportSelectedItems();
+                          setShowSelectionMenu(false);
+                        }}
+                        className="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:opacity-80 border-t"
+                        style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
+                      >
+                        <Download size={16} /> Exportar como JSON
+                      </button>
+                      <button
+                        onClick={() => {
+                          removeSelectedItems();
+                          setShowSelectionMenu(false);
+                        }}
+                        className="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:opacity-80 border-t"
+                        style={{ color: '#ef4444', borderColor: 'var(--border-color)' }}
+                      >
+                        <Trash2 size={16} /> Eliminar seleccionados
+                      </button>
+                    </div>
+                  )}
                 </div>
               </>
             )}
