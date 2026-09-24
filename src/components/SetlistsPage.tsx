@@ -2,17 +2,13 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { Song, Setlist, SetlistSong } from '../types';
 import { songs as allSongs } from '../data/songs';
 import { useApp } from '../context/AppContext';
-import { Plus, Trash2, Music, Clock, ChevronUp, ChevronDown, GripVertical, X, MoreVertical, Edit2, CheckSquare, Square, Search, Share2, Download, Camera, Image as ImageIcon } from 'lucide-react';
+import { Plus, Trash2, Music, Clock, ChevronUp, ChevronDown, GripVertical, X, MoreVertical, Edit2, CheckSquare, Square, Search, Share2, Download, Camera } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import SetlistExtractor from './SetlistExtractor';
 
-export default function SetlistsPage({ onSelectSong, onBack, initialSetlistId }: { 
-  onSelectSong: (song: Song, source?: any) => void; 
-  onBack?: () => void;
-  initialSetlistId?: string | null;
-}) {
+export default function SetlistsPage({ onSelectSong, onBack }: { onSelectSong: (song: Song) => void; onBack?: () => void }) {
   const { state, addSetlist, removeSetlist, addSongToSetlist, removeSongFromSetlist, updateSetlistSong } = useApp();
-  const [selectedSetlist, setSelectedSetlist] = useState<string | null>(initialSetlistId || null);
+  const [selectedSetlist, setSelectedSetlist] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showExtractor, setShowExtractor] = useState(false);
   const [reorderMode, setReorderMode] = useState(false);
@@ -23,10 +19,8 @@ export default function SetlistsPage({ onSelectSong, onBack, initialSetlistId }:
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [songSearchQuery, setSongSearchQuery] = useState('');
-  const [showShareMenu, setShowShareMenu] = useState(false);
-  
+
   const editRef = useRef<HTMLDivElement>(null);
-  const shareMenuRef = useRef<HTMLDivElement>(null);
 
   const allAvailableSongs = useMemo(() => {
     const customSongsMap = new Map(state.customSongs.map(s => [s.id, s]));
@@ -56,19 +50,16 @@ export default function SetlistsPage({ onSelectSong, onBack, initialSetlistId }:
       if (editRef.current && !editRef.current.contains(event.target as Node)) {
         setEditingItem(null);
       }
-      if (shareMenuRef.current && !shareMenuRef.current.contains(event.target as Node)) {
-        setShowShareMenu(false);
-      }
     };
 
-    if (editingItem || showShareMenu) {
+    if (editingItem) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [editingItem, showShareMenu]);
+  }, [editingItem]);
 
   // Cerrar menú de agregar al hacer clic fuera
   useEffect(() => {
@@ -116,17 +107,17 @@ export default function SetlistsPage({ onSelectSong, onBack, initialSetlistId }:
 
   const addSongItem = () => {
     if (!selectedSetlist) return;
-    
+
     const newSong: SetlistSong = {
       songId: '',
       transposition: 0,
       notes: '',
       order: currentSetlist?.songs.length || 0,
     };
-    
+
     addSongToSetlist(selectedSetlist, newSong);
     setShowAddMenu(false);
-    setEditingItem('new');
+    setEditingItem(newSong.songId || 'new');
   };
 
   const removeSong = (songId: string) => {
@@ -142,27 +133,27 @@ export default function SetlistsPage({ onSelectSong, onBack, initialSetlistId }:
 
   const removeSelectedItems = () => {
     if (!selectedSetlist || selectedItems.size === 0) return;
-    
+
     if (!confirm(`¿Eliminar ${selectedItems.size} canción(es)?`)) return;
-    
+
     selectedItems.forEach(songId => {
       removeSongFromSetlist(selectedSetlist, songId);
     });
-    
+
     setSelectedItems(new Set());
     setSelectionMode(false);
   };
 
   const moveItem = (index: number, direction: 'up' | 'down') => {
     if (!currentSetlist) return;
-    
+
     const songs = [...currentSetlist.songs];
     const newIndex = direction === 'up' ? index - 1 : index + 1;
-    
+
     if (newIndex < 0 || newIndex >= songs.length) return;
-    
+
     [songs[index], songs[newIndex]] = [songs[newIndex], songs[index]];
-    
+
     // Actualizar el orden
     songs.forEach((song, idx) => {
       updateSetlistSong(selectedSetlist!, song.songId, { order: idx });
@@ -172,17 +163,17 @@ export default function SetlistsPage({ onSelectSong, onBack, initialSetlistId }:
   const handleExtracted = (items: string[]) => {
     const newListName = `Lista extraída ${state.setlists.length + 1}`;
     addSetlist(newListName);
-    
+
     // Encontrar la lista recién creada
     const newList = state.setlists.find(s => s.name === newListName);
     if (newList) {
       // Intentar encontrar canciones que coincidan
       items.forEach((text, index) => {
-        const matchingSong = allAvailableSongs.find(song => 
+        const matchingSong = allAvailableSongs.find(song =>
           song.title.toLowerCase().includes(text.toLowerCase()) ||
           text.toLowerCase().includes(song.title.toLowerCase())
         );
-        
+
         if (matchingSong) {
           addSongToSetlist(newList.id, {
             songId: matchingSong.id,
@@ -192,10 +183,10 @@ export default function SetlistsPage({ onSelectSong, onBack, initialSetlistId }:
           });
         }
       });
-      
+
       setSelectedSetlist(newList.id);
     }
-    
+
     setShowExtractor(false);
   };
 
@@ -209,116 +200,28 @@ export default function SetlistsPage({ onSelectSong, onBack, initialSetlistId }:
     setSelectedItems(newSelected);
   };
 
-  const shareAsText = () => {
+  const shareSetlist = () => {
     if (!currentSetlist) return;
-    
-    const text = `📋 ${currentSetlist.name}\n\n${currentSetlist.songs.map((ss, i) => {
+
+    const text = `Lista: ${currentSetlist.name}\n\n${currentSetlist.songs.map((ss, i) => {
       const song = allAvailableSongs.find(s => s.id === ss.songId);
-      return `${i + 1}. ${song?.title || 'Sin canción'}${song?.artist ? ` - ${song.artist}` : ''}${ss.notes ? ` (${ss.notes})` : ''}`;
-    }).join('\n')}\n\nCompartido desde Cancionero7Pro`;
-    
+      return `${i + 1}. ${song?.title || 'Sin canción'}`;
+    }).join('\n')}`;
+
     if (navigator.share) {
       navigator.share({
         title: currentSetlist.name,
         text: text,
-      }).catch(() => {
-        navigator.clipboard.writeText(text);
-        alert('Lista copiada al portapapeles');
       });
     } else {
       navigator.clipboard.writeText(text);
       alert('Lista copiada al portapapeles');
     }
-    setShowShareMenu(false);
-  };
-
-  const shareAsImage = async () => {
-    if (!currentSetlist) return;
-    
-    // Crear un canvas con la lista
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    const width = 800;
-    const lineHeight = 30;
-    const padding = 40;
-    const songCount = currentSetlist.songs.length;
-    const height = padding * 2 + lineHeight * (songCount + 2);
-    
-    canvas.width = width;
-    canvas.height = height;
-    
-    // Fondo
-    ctx.fillStyle = '#1e293b';
-    ctx.fillRect(0, 0, width, height);
-    
-    // Título
-    ctx.fillStyle = '#a78bfa';
-    ctx.font = 'bold 32px Inter, sans-serif';
-    ctx.fillText(currentSetlist.name, padding, padding + 30);
-    
-    // Canciones
-    ctx.fillStyle = '#f1f5f9';
-    ctx.font = '18px Inter, sans-serif';
-    
-    currentSetlist.songs.forEach((ss, i) => {
-      const song = allAvailableSongs.find(s => s.id === ss.songId);
-      const y = padding + 80 + (i * lineHeight);
-      ctx.fillText(`${i + 1}. ${song?.title || 'Sin canción'}`, padding, y);
-      
-      if (song?.artist) {
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = '14px Inter, sans-serif';
-        ctx.fillText(`   ${song.artist}`, padding, y + 18);
-        ctx.fillStyle = '#f1f5f9';
-        ctx.font = '18px Inter, sans-serif';
-      }
-    });
-    
-    // Footer
-    ctx.fillStyle = '#64748b';
-    ctx.font = '12px Inter, sans-serif';
-    ctx.fillText('Cancionero7Pro', padding, height - padding);
-    
-    // Convertir a imagen y compartir
-    canvas.toBlob(async (blob) => {
-      if (!blob) return;
-      
-      const file = new File([blob], `${currentSetlist.name}.png`, { type: 'image/png' });
-      
-      if (navigator.share && navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({
-            title: currentSetlist.name,
-            files: [file],
-          });
-        } catch {
-          // Fallback: descargar la imagen
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${currentSetlist.name}.png`;
-          a.click();
-          URL.revokeObjectURL(url);
-        }
-      } else {
-        // Fallback: descargar la imagen
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${currentSetlist.name}.png`;
-        a.click();
-        URL.revokeObjectURL(url);
-      }
-    });
-    
-    setShowShareMenu(false);
   };
 
   const exportSetlist = () => {
     if (!currentSetlist) return;
-    
+
     const data = {
       name: currentSetlist.name,
       songs: currentSetlist.songs.map(ss => {
@@ -333,7 +236,7 @@ export default function SetlistsPage({ onSelectSong, onBack, initialSetlistId }:
         };
       }),
     };
-    
+
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -347,13 +250,13 @@ export default function SetlistsPage({ onSelectSong, onBack, initialSetlistId }:
     return (
       <div className="space-y-4 pb-20">
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={() => {
               setSelectedSetlist(null);
               setSelectionMode(false);
               setSelectedItems(new Set());
             }}
-            className="p-2 rounded-xl" 
+            className="p-2 rounded-xl"
             style={{ backgroundColor: 'var(--bg-tertiary)' }}
           >
             ←
@@ -387,40 +290,39 @@ export default function SetlistsPage({ onSelectSong, onBack, initialSetlistId }:
           >
             <CheckSquare size={20} />
           </button>
-          <div className="relative" ref={shareMenuRef}>
+          <div className="relative" data-item-menu>
             <button
-              onClick={() => setShowShareMenu(!showShareMenu)}
+              onClick={() => setOpenMenuId(openMenuId === 'list-menu' ? null : 'list-menu')}
               className="p-2 rounded-xl"
               style={{ backgroundColor: 'var(--bg-tertiary)' }}
             >
-              <Share2 size={20} />
+              <MoreVertical size={20} />
             </button>
-            
-            {showShareMenu && (
-              <div 
-                className="absolute right-0 top-full mt-1 w-56 rounded-xl shadow-lg overflow-hidden z-50"
+
+            {openMenuId === 'list-menu' && (
+              <div
+                className="absolute right-0 top-full mt-1 w-48 rounded-xl shadow-lg overflow-hidden z-50"
                 style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)' }}
               >
                 <button
-                  onClick={shareAsText}
+                  onClick={() => {
+                    shareSetlist();
+                    setOpenMenuId(null);
+                  }}
                   className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:opacity-80"
                   style={{ color: 'var(--text-primary)' }}
                 >
-                  <Share2 size={14} /> Compartir como texto
+                  <Share2 size={14} /> Compartir
                 </button>
                 <button
-                  onClick={shareAsImage}
-                  className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:opacity-80 border-t"
-                  style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
+                  onClick={() => {
+                    exportSetlist();
+                    setOpenMenuId(null);
+                  }}
+                  className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:opacity-80"
+                  style={{ color: 'var(--text-primary)' }}
                 >
-                  <ImageIcon size={14} /> Compartir como imagen
-                </button>
-                <button
-                  onClick={exportSetlist}
-                  className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:opacity-80 border-t"
-                  style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
-                >
-                  <Download size={14} /> Exportar JSON
+                  <Download size={14} /> Exportar
                 </button>
               </div>
             )}
@@ -449,14 +351,14 @@ export default function SetlistsPage({ onSelectSong, onBack, initialSetlistId }:
           {currentSetlist.songs.map((ss, index) => {
             const song = allAvailableSongs.find(s => s.id === ss.songId);
             const isEditing = editingItem === ss.songId || (editingItem === 'new' && !ss.songId);
-            
+
             return (
               <motion.div
                 key={ss.songId || index}
                 layout
                 className="flex items-start gap-2 p-3 rounded-xl border"
-                style={{ 
-                  backgroundColor: 'var(--card-bg)', 
+                style={{
+                  backgroundColor: 'var(--card-bg)',
                   borderColor: selectedItems.has(ss.songId) ? 'var(--accent)' : 'var(--border-color)',
                   borderWidth: selectedItems.has(ss.songId) ? '2px' : '1px'
                 }}
@@ -493,13 +395,13 @@ export default function SetlistsPage({ onSelectSong, onBack, initialSetlistId }:
                     </button>
                   </div>
                 )}
-                
+
                 {/* Item Number */}
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 mt-1"
                      style={{ backgroundColor: 'var(--accent-light)', color: 'var(--accent)' }}>
                   {index + 1}
                 </div>
-                
+
                 {/* Song Content */}
                 <div className="flex-1 min-w-0" ref={isEditing ? editRef : null}>
                   {isEditing ? (
@@ -522,6 +424,7 @@ export default function SetlistsPage({ onSelectSong, onBack, initialSetlistId }:
                             key={song.id}
                             onClick={() => {
                               if (editingItem === 'new') {
+                                // Actualizar la canción recién creada
                                 const lastSong = currentSetlist.songs[currentSetlist.songs.length - 1];
                                 updateSong(lastSong.songId, { songId: song.id });
                               } else {
@@ -541,27 +444,12 @@ export default function SetlistsPage({ onSelectSong, onBack, initialSetlistId }:
                           </button>
                         ))}
                       </div>
-                      <input
-                        type="text"
-                        value={ss.notes || ''}
-                        onChange={e => {
-                          if (editingItem === 'new') {
-                            const lastSong = currentSetlist.songs[currentSetlist.songs.length - 1];
-                            updateSong(lastSong.songId, { notes: e.target.value });
-                          } else {
-                            updateSong(ss.songId, { notes: e.target.value });
-                          }
-                        }}
-                        placeholder="Nota (ej: Tocar en tono D)"
-                        className="w-full p-2 rounded-lg border text-xs"
-                        style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}
-                      />
                     </div>
                   ) : (
                     <button
                       onClick={() => {
                         if (song) {
-                          onSelectSong(song, { type: 'list', id: currentSetlist.id, name: currentSetlist.name });
+                          onSelectSong(song);
                         }
                       }}
                       className="w-full text-left"
@@ -587,7 +475,7 @@ export default function SetlistsPage({ onSelectSong, onBack, initialSetlistId }:
                     </button>
                   )}
                 </div>
-                
+
                 {/* Three-dot Menu */}
                 {!isEditing && !selectionMode && !reorderMode && (
                   <div className="relative" data-item-menu>
@@ -598,9 +486,9 @@ export default function SetlistsPage({ onSelectSong, onBack, initialSetlistId }:
                     >
                       <MoreVertical size={16} />
                     </button>
-                    
+
                     {openMenuId === ss.songId && (
-                      <div 
+                      <div
                         className="absolute right-0 top-full mt-1 w-40 rounded-xl shadow-lg overflow-hidden z-50"
                         style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)' }}
                       >
@@ -628,7 +516,7 @@ export default function SetlistsPage({ onSelectSong, onBack, initialSetlistId }:
               </motion.div>
             );
           })}
-          
+
           {currentSetlist.songs.length === 0 && (
             <div className="text-center py-12">
               <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
@@ -663,7 +551,7 @@ export default function SetlistsPage({ onSelectSong, onBack, initialSetlistId }:
                 </motion.div>
               )}
             </AnimatePresence>
-            
+
             <button
               onClick={() => setShowAddMenu(!showAddMenu)}
               className="w-14 h-14 rounded-full flex items-center justify-center shadow-xl transition-all active:scale-95 hover:scale-105"
@@ -686,9 +574,9 @@ export default function SetlistsPage({ onSelectSong, onBack, initialSetlistId }:
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {onBack && (
-            <button 
+            <button
               onClick={onBack}
-              className="p-2 rounded-lg" 
+              className="p-2 rounded-lg"
               style={{ backgroundColor: 'var(--bg-tertiary)' }}
             >
               ←
@@ -746,7 +634,7 @@ export default function SetlistsPage({ onSelectSong, onBack, initialSetlistId }:
             </button>
           </div>
         ))}
-        
+
         {state.setlists.length === 0 && (
           <div className="text-center py-12">
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
@@ -779,7 +667,7 @@ export default function SetlistsPage({ onSelectSong, onBack, initialSetlistId }:
               style={{ backgroundColor: 'var(--card-bg)' }}
             >
               <h3 className="font-bold text-lg mb-3">Nueva Lista de Canciones</h3>
-              
+
               <input
                 type="text"
                 value={newSetlistName}
