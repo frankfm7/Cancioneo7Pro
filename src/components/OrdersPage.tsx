@@ -421,7 +421,7 @@ export default function OrdersPage({ onSelectSong, onBack }: { onSelectSong: (so
                         className="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:opacity-80"
                         style={{ color: 'var(--text-primary)' }}
                       >
-                        <Copy size={16} /> Copiar al portapapeles
+                        <Copy size={16} /> Copiar
                       </button>
                       <button
                         onClick={() => {
@@ -441,7 +441,7 @@ export default function OrdersPage({ onSelectSong, onBack }: { onSelectSong: (so
                         className="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:opacity-80 border-t"
                         style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
                       >
-                        <Download size={16} /> Exportar como JSON
+                        <Download size={16} /> Exportar
                       </button>
                       <button
                         onClick={() => {
@@ -451,7 +451,7 @@ export default function OrdersPage({ onSelectSong, onBack }: { onSelectSong: (so
                         className="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:opacity-80 border-t"
                         style={{ color: '#ef4444', borderColor: 'var(--border-color)' }}
                       >
-                        <Trash2 size={16} /> Eliminar seleccionados
+                        <Trash2 size={16} /> Eliminar
                       </button>
                     </div>
                   )}
