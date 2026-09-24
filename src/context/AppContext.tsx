@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { AppState, Hymnal, Song, Setlist, SetlistSong, Order } from '../types';
-import { hymnals, songs } from '../data/songs';
+import React, { createContext, useContext, useMemo, useCallback, useEffect } from 'react';
+import { useLocalStorage } from '../hooks/useLocalStorage';
+import { AppState, Setlist, SetlistSong, Hymnal, Song, Order } from '../types';
+import { hymnals } from '../data/songs';
 
 interface AppContextType {
   state: AppState;
@@ -11,6 +12,7 @@ interface AppContextType {
   addSongToSetlist: (setlistId: string, song: SetlistSong) => void;
   removeSongFromSetlist: (setlistId: string, songId: string) => void;
   updateSetlistSong: (setlistId: string, songId: string, updates: Partial<SetlistSong>) => void;
+  reorderSetlist: (setlistId: string, songs: SetlistSong[]) => void;
   addOrder: (order: Order) => void;
   removeOrder: (id: string) => void;
   updateOrder: (order: Order) => void;
@@ -42,68 +44,85 @@ const defaultState: AppState = {
   customSongs: [],
 };
 
-const AppContext = createContext<AppContextType | undefined>(undefined);
+const AppContext = createContext<AppContextType | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<AppState>(() => {
-    const saved = localStorage.getItem('cancionero-ruah-state');
-    return saved ? JSON.parse(saved) : defaultState;
-  });
+  // Cargar canciones personalizadas desde localStorage al iniciar
+  const loadCustomSongs = (): Song[] => {
+    try {
+      const saved = localStorage.getItem('cancionero-custom-songs');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  };
 
+  const initialState = {
+    ...defaultState,
+    customSongs: loadCustomSongs(),
+  };
+
+  const [state, setState] = useLocalStorage<AppState>('cancionero-ruah-state', initialState);
+
+  // Migración: asegurar que orders exista en el estado
   useEffect(() => {
-    localStorage.setItem('cancionero-ruah-state', JSON.stringify(state));
-  }, [state]);
+    if (!state.orders) {
+      setState(prev => ({ ...prev, orders: [] }));
+    }
+  }, [state.orders, setState]);
 
-  const toggleFavorite = (songId: string) => {
+  const toggleFavorite = useCallback((songId: string) => {
     setState(prev => ({
       ...prev,
       favorites: prev.favorites.includes(songId)
         ? prev.favorites.filter(id => id !== songId)
-        : [...prev.favorites, songId]
+        : [...prev.favorites, songId],
     }));
-  };
+  }, [setState]);
 
-  const isFavorite = (songId: string) => state.favorites.includes(songId);
+  const isFavorite = useCallback((songId: string) => {
+    return state.favorites.includes(songId);
+  }, [state.favorites]);
 
-  const addSetlist = (name: string) => {
+  const addSetlist = useCallback((name: string) => {
     const newSetlist: Setlist = {
       id: crypto.randomUUID(),
       name,
       songs: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      notes: ''
+      notes: '',
     };
     setState(prev => ({ ...prev, setlists: [...prev.setlists, newSetlist] }));
-  };
+  }, [setState]);
 
-  const removeSetlist = (id: string) => {
+  const removeSetlist = useCallback((id: string) => {
     setState(prev => ({ ...prev, setlists: prev.setlists.filter(s => s.id !== id) }));
-  };
+  }, [setState]);
 
-  const addSongToSetlist = (setlistId: string, song: SetlistSong) => {
+  const addSongToSetlist = useCallback((setlistId: string, song: SetlistSong) => {
     setState(prev => ({
       ...prev,
       setlists: prev.setlists.map(s =>
         s.id === setlistId
           ? { ...s, songs: [...s.songs, song], updatedAt: new Date().toISOString() }
           : s
-      )
+      ),
     }));
-  };
+  }, [setState]);
 
-  const removeSongFromSetlist = (setlistId: string, songId: string) => {
+  const removeSongFromSetlist = useCallback((setlistId: string, songId: string) => {
     setState(prev => ({
       ...prev,
       setlists: prev.setlists.map(s =>
         s.id === setlistId
           ? { ...s, songs: s.songs.filter(song => song.songId !== songId), updatedAt: new Date().toISOString() }
           : s
-      )
+      ),
     }));
-  };
+  }, [setState]);
 
-  const updateSetlistSong = (setlistId: string, songId: string, updates: Partial<SetlistSong>) => {
+  const updateSetlistSong = useCallback((setlistId: string, songId: string, updates: Partial<SetlistSong>) => {
     setState(prev => ({
       ...prev,
       setlists: prev.setlists.map(s =>
@@ -113,82 +132,156 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               songs: s.songs.map(song =>
                 song.songId === songId ? { ...song, ...updates } : song
               ),
-              updatedAt: new Date().toISOString()
+              updatedAt: new Date().toISOString(),
             }
           : s
-      )
+      ),
     }));
-  };
+  }, [setState]);
 
-  const addOrder = (order: Order) => {
+  const reorderSetlist = useCallback((setlistId: string, songs: SetlistSong[]) => {
+    setState(prev => ({
+      ...prev,
+      setlists: prev.setlists.map(s =>
+        s.id === setlistId ? { ...s, songs, updatedAt: new Date().toISOString() } : s
+      ),
+    }));
+  }, [setState]);
+
+  const addOrder = useCallback((order: Order) => {
     setState(prev => ({ ...prev, orders: [...prev.orders, order] }));
-  };
+  }, [setState]);
 
-  const removeOrder = (id: string) => {
+  const removeOrder = useCallback((id: string) => {
     setState(prev => ({ ...prev, orders: prev.orders.filter(o => o.id !== id) }));
-  };
+  }, [setState]);
 
-  const updateOrder = (order: Order) => {
+  const updateOrder = useCallback((order: Order) => {
     setState(prev => ({
       ...prev,
-      orders: prev.orders.map(o => o.id === order.id ? order : o)
+      orders: prev.orders.map(o => o.id === order.id ? order : o),
     }));
-  };
+  }, [setState]);
 
-  const setTheme = (theme: 'light' | 'dark') => {
+  const setTheme = useCallback((theme: 'light' | 'dark') => {
     setState(prev => ({ ...prev, preferences: { ...prev.preferences, theme } }));
-  };
+  }, [setState]);
 
-  const setFontSize = (fontSize: number) => {
+  const setFontSize = useCallback((fontSize: number) => {
     setState(prev => ({ ...prev, preferences: { ...prev.preferences, fontSize } }));
-  };
+  }, [setState]);
 
-  const setShowChords = (showChords: boolean) => {
+  const setShowChords = useCallback((showChords: boolean) => {
     setState(prev => ({ ...prev, preferences: { ...prev.preferences, showChords } }));
-  };
+  }, [setState]);
 
-  const setCapo = (capo: number) => {
+  const setCapo = useCallback((capo: number) => {
     setState(prev => ({ ...prev, preferences: { ...prev.preferences, capo } }));
-  };
+  }, [setState]);
 
-  const updatePersonalNote = (songId: string, note: string) => {
+  const updatePersonalNote = useCallback((songId: string, note: string) => {
     setState(prev => ({
       ...prev,
-      personalNotes: { ...prev.personalNotes, [songId]: note }
+      personalNotes: { ...prev.personalNotes, [songId]: note },
     }));
-  };
+  }, [setState]);
 
-  const addCustomHymnal = (hymnal: Hymnal) => {
+  const addCustomHymnal = useCallback((hymnal: Hymnal) => {
     setState(prev => ({ ...prev, customHymnals: [...prev.customHymnals, hymnal] }));
-  };
+  }, [setState]);
 
-  const removeCustomHymnal = (id: string) => {
+  const removeCustomHymnal = useCallback((id: string) => {
     setState(prev => ({ ...prev, customHymnals: prev.customHymnals.filter(h => h.id !== id) }));
-  };
+  }, [setState]);
 
-  const updateCustomHymnal = (hymnal: Hymnal) => {
-    setState(prev => ({
-      ...prev,
-      customHymnals: prev.customHymnals.map(h => h.id === hymnal.id ? hymnal : h)
-    }));
-  };
+  const updateCustomHymnal = useCallback((hymnal: Hymnal) => {
+    setState(prev => {
+      // Verificar si el himnario ya existe en customHymnals
+      const exists = prev.customHymnals.some(h => h.id === hymnal.id);
 
-  const addCustomSong = (song: Song) => {
-    setState(prev => ({ ...prev, customSongs: [...prev.customSongs, song] }));
-  };
+      let newCustomHymnals;
+      if (exists) {
+        // Actualizar el himnario existente
+        newCustomHymnals = prev.customHymnals.map(h => h.id === hymnal.id ? hymnal : h);
+      } else {
+        // Agregar el himnario (puede ser un himnario predeterminado que se está editando)
+        newCustomHymnals = [...prev.customHymnals, hymnal];
+      }
 
-  const updateCustomSong = (song: Song) => {
-    setState(prev => ({
-      ...prev,
-      customSongs: prev.customSongs.map(s => s.id === song.id ? song : s)
-    }));
-  };
+      // Si el prefijo de código cambió, actualizar los códigos de todas las canciones de este himnario
+      const oldHymnal = prev.customHymnals.find((h: Hymnal) => h.id === hymnal.id) || hymnals.find((h: Hymnal) => h.id === hymnal.id);
+      const oldPrefix = oldHymnal?.codePrefix || oldHymnal?.id.charAt(0).toUpperCase();
+      const newPrefix = hymnal.codePrefix || hymnal.id.charAt(0).toUpperCase();
 
-  const removeCustomSong = (id: string) => {
-    setState(prev => ({ ...prev, customSongs: prev.customSongs.filter(s => s.id !== id) }));
-  };
+      let newCustomSongs = prev.customSongs;
+      if (oldPrefix !== newPrefix) {
+        // Actualizar los códigos de las canciones
+        newCustomSongs = prev.customSongs.map(song => {
+          if (song.hymnalId === hymnal.id) {
+            const number = song.number || parseInt(song.code.replace(/^[A-Za-z]+/, '')) || 0;
+            return {
+              ...song,
+              code: `${newPrefix}${number}`,
+            };
+          }
+          return song;
+        });
 
-  const value: AppContextType = {
+        // Guardar también en localStorage
+        localStorage.setItem('cancionero-custom-songs', JSON.stringify(newCustomSongs));
+      }
+
+      return {
+        ...prev,
+        customHymnals: newCustomHymnals,
+        customSongs: newCustomSongs,
+      };
+    });
+  }, [setState]);
+
+  const addCustomSong = useCallback((song: Song) => {
+    setState(prev => {
+      const newCustomSongs = [...prev.customSongs, song];
+      // Guardar también en localStorage separado
+      localStorage.setItem('cancionero-custom-songs', JSON.stringify(newCustomSongs));
+      return { ...prev, customSongs: newCustomSongs };
+    });
+  }, [setState]);
+
+  const updateCustomSong = useCallback((song: Song) => {
+    setState(prev => {
+      // Verificar si la canción ya existe en customSongs
+      const exists = prev.customSongs.some(s => s.id === song.id);
+
+      let newCustomSongs;
+      if (exists) {
+        // Actualizar la canción existente
+        newCustomSongs = prev.customSongs.map(s => s.id === song.id ? song : s);
+      } else {
+        // Agregar la canción (puede ser una canción predeterminada que se está editando)
+        newCustomSongs = [...prev.customSongs, song];
+      }
+
+      // Guardar también en localStorage separado
+      localStorage.setItem('cancionero-custom-songs', JSON.stringify(newCustomSongs));
+
+      return {
+        ...prev,
+        customSongs: newCustomSongs,
+      };
+    });
+  }, [setState]);
+
+  const removeCustomSong = useCallback((id: string) => {
+    setState(prev => {
+      const newCustomSongs = prev.customSongs.filter(s => s.id !== id);
+      // Guardar también en localStorage separado
+      localStorage.setItem('cancionero-custom-songs', JSON.stringify(newCustomSongs));
+      return { ...prev, customSongs: newCustomSongs };
+    });
+  }, [setState]);
+
+  const value = useMemo(() => ({
     state,
     toggleFavorite,
     isFavorite,
@@ -197,6 +290,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addSongToSetlist,
     removeSongFromSetlist,
     updateSetlistSong,
+    reorderSetlist,
     addOrder,
     removeOrder,
     updateOrder,
@@ -210,16 +304,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     updateCustomHymnal,
     addCustomSong,
     updateCustomSong,
-    removeCustomSong
-  };
+    removeCustomSong,
+  }), [state, toggleFavorite, isFavorite, addSetlist, removeSetlist,
+    addSongToSetlist, removeSongFromSetlist, updateSetlistSong, reorderSetlist,
+    addOrder, removeOrder, updateOrder,
+    setTheme, setFontSize, setShowChords, setCapo, updatePersonalNote,
+    addCustomHymnal, removeCustomHymnal, updateCustomHymnal, addCustomSong, updateCustomSong, removeCustomSong]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
 export function useApp() {
   const context = useContext(AppContext);
-  if (!context) {
-    throw new Error('useApp must be used within AppProvider');
-  }
+  if (!context) throw new Error('useApp must be used within AppProvider');
   return context;
 }
