@@ -1,18 +1,14 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Order, OrderItem, Song } from '../types';
 import { useApp } from '../context/AppContext';
-import { Plus, ChevronUp, ChevronDown, GripVertical, Camera, MoreVertical, Edit2, Trash2, CheckSquare, Square, X, Music, Search, Share2, Download, Image as ImageIcon } from 'lucide-react';
+import { Plus, ChevronUp, ChevronDown, GripVertical, Camera, MoreVertical, Edit2, Trash2, CheckSquare, Square, X, Music, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { songs as allSongs } from '../data/songs';
 import OrderExtractor from './OrderExtractor';
 
-export default function OrdersPage({ onSelectSong, onBack, initialOrderId }: { 
-  onSelectSong: (song: Song, source?: any) => void; 
-  onBack?: () => void;
-  initialOrderId?: string | null;
-}) {
+export default function OrdersPage({ onSelectSong, onBack }: { onSelectSong: (song: Song) => void; onBack?: () => void }) {
   const { state, addOrder, removeOrder, updateOrder } = useApp();
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(initialOrderId ? state.orders.find(o => o.id === initialOrderId) || null : null);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showExtractor, setShowExtractor] = useState(false);
   const [reorderMode, setReorderMode] = useState(false);
@@ -24,22 +20,10 @@ export default function OrdersPage({ onSelectSong, onBack, initialOrderId }: {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [songSearchQuery, setSongSearchQuery] = useState('');
-  const [showShareMenu, setShowShareMenu] = useState(false);
 
   const orders = state.orders || [];
   const allAvailableSongs = [...allSongs, ...(state.customSongs || [])];
   const editRef = useRef<HTMLDivElement>(null);
-  const shareMenuRef = useRef<HTMLDivElement>(null);
-
-  const filteredSongs = useMemo(() => {
-    if (!songSearchQuery.trim()) return allAvailableSongs;
-    const query = songSearchQuery.toLowerCase();
-    return allAvailableSongs.filter(song =>
-      song.title.toLowerCase().includes(query) ||
-      song.artist.toLowerCase().includes(query) ||
-      song.code.toLowerCase().includes(query)
-    );
-  }, [songSearchQuery, allAvailableSongs]);
 
   // Cerrar edición al hacer clic fuera
   useEffect(() => {
@@ -47,19 +31,16 @@ export default function OrdersPage({ onSelectSong, onBack, initialOrderId }: {
       if (editRef.current && !editRef.current.contains(event.target as Node)) {
         setEditingItem(null);
       }
-      if (shareMenuRef.current && !shareMenuRef.current.contains(event.target as Node)) {
-        setShowShareMenu(false);
-      }
     };
 
-    if (editingItem || showShareMenu) {
+    if (editingItem) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [editingItem, showShareMenu]);
+  }, [editingItem]);
 
   // Cerrar menú de agregar al hacer clic fuera
   useEffect(() => {
@@ -107,7 +88,7 @@ export default function OrdersPage({ onSelectSong, onBack, initialOrderId }: {
       updatedAt: new Date().toISOString(),
       notes: '',
     };
-    
+
     addOrder(newOrder);
     setSelectedOrder(newOrder);
     setNewOrderName('');
@@ -116,20 +97,20 @@ export default function OrdersPage({ onSelectSong, onBack, initialOrderId }: {
 
   const addTextItem = () => {
     if (!selectedOrder) return;
-    
+
     const newItem: OrderItem = {
       id: crypto.randomUUID(),
       type: 'text',
       content: '',
       notes: '',
     };
-    
+
     const updatedOrder = {
       ...selectedOrder,
       items: [...selectedOrder.items, newItem],
       updatedAt: new Date().toISOString(),
     };
-    
+
     updateOrder(updatedOrder);
     setSelectedOrder(updatedOrder);
     setEditingItem(newItem.id);
@@ -138,20 +119,20 @@ export default function OrdersPage({ onSelectSong, onBack, initialOrderId }: {
 
   const addSongItem = () => {
     if (!selectedOrder) return;
-    
+
     const newItem: OrderItem = {
       id: crypto.randomUUID(),
       type: 'song',
       content: '',
       notes: '',
     };
-    
+
     const updatedOrder = {
       ...selectedOrder,
       items: [...selectedOrder.items, newItem],
       updatedAt: new Date().toISOString(),
     };
-    
+
     updateOrder(updatedOrder);
     setSelectedOrder(updatedOrder);
     setEditingItem(newItem.id);
@@ -160,30 +141,30 @@ export default function OrdersPage({ onSelectSong, onBack, initialOrderId }: {
 
   const updateItem = (itemId: string, updates: Partial<OrderItem>) => {
     if (!selectedOrder) return;
-    
-    const updatedItems = selectedOrder.items.map(item => 
+
+    const updatedItems = selectedOrder.items.map(item =>
       item.id === itemId ? { ...item, ...updates } : item
     );
-    
+
     const updatedOrder = {
       ...selectedOrder,
       items: updatedItems,
       updatedAt: new Date().toISOString(),
     };
-    
+
     updateOrder(updatedOrder);
     setSelectedOrder(updatedOrder);
   };
 
   const removeItem = (itemId: string) => {
     if (!selectedOrder) return;
-    
+
     const updatedOrder = {
       ...selectedOrder,
       items: selectedOrder.items.filter(item => item.id !== itemId),
       updatedAt: new Date().toISOString(),
     };
-    
+
     updateOrder(updatedOrder);
     setSelectedOrder(updatedOrder);
     setOpenMenuId(null);
@@ -191,15 +172,15 @@ export default function OrdersPage({ onSelectSong, onBack, initialOrderId }: {
 
   const removeSelectedItems = () => {
     if (!selectedOrder || selectedItems.size === 0) return;
-    
+
     if (!confirm(`¿Eliminar ${selectedItems.size} elemento(s)?`)) return;
-    
+
     const updatedOrder = {
       ...selectedOrder,
       items: selectedOrder.items.filter(item => !selectedItems.has(item.id)),
       updatedAt: new Date().toISOString(),
     };
-    
+
     updateOrder(updatedOrder);
     setSelectedOrder(updatedOrder);
     setSelectedItems(new Set());
@@ -208,20 +189,20 @@ export default function OrdersPage({ onSelectSong, onBack, initialOrderId }: {
 
   const moveItem = (index: number, direction: 'up' | 'down') => {
     if (!selectedOrder) return;
-    
+
     const newItems = [...selectedOrder.items];
     const newIndex = direction === 'up' ? index - 1 : index + 1;
-    
+
     if (newIndex < 0 || newIndex >= newItems.length) return;
-    
+
     [newItems[index], newItems[newIndex]] = [newItems[newIndex], newItems[index]];
-    
+
     const updatedOrder = {
       ...selectedOrder,
       items: newItems,
       updatedAt: new Date().toISOString(),
     };
-    
+
     updateOrder(updatedOrder);
     setSelectedOrder(updatedOrder);
   };
@@ -241,7 +222,7 @@ export default function OrdersPage({ onSelectSong, onBack, initialOrderId }: {
       updatedAt: new Date().toISOString(),
       notes: '',
     };
-    
+
     addOrder(newOrder);
     setSelectedOrder(newOrder);
     setShowExtractor(false);
@@ -264,177 +245,27 @@ export default function OrdersPage({ onSelectSong, onBack, initialOrderId }: {
     setSelectedItems(newSelected);
   };
 
-  const shareAsText = () => {
-    if (!selectedOrder) return;
-    
-    const text = `📋 ${selectedOrder.name}\n\n${selectedOrder.items.map((item, i) => {
-      if (item.type === 'song') {
-        const song = getItemSong(item);
-        return `${i + 1}. ${song?.title || 'Sin canción'}${song?.artist ? ` - ${song.artist}` : ''}${item.notes ? ` (${item.notes})` : ''}`;
-      } else {
-        return `${i + 1}. ${item.content}${item.notes ? ` (${item.notes})` : ''}`;
-      }
-    }).join('\n')}\n\nCompartido desde Cancionero7Pro`;
-    
-    if (navigator.share) {
-      navigator.share({
-        title: selectedOrder.name,
-        text: text,
-      }).catch(() => {
-        navigator.clipboard.writeText(text);
-        alert('Orden copiado al portapapeles');
-      });
-    } else {
-      navigator.clipboard.writeText(text);
-      alert('Orden copiado al portapapeles');
-    }
-    setShowShareMenu(false);
-  };
-
-  const shareAsImage = async () => {
-    if (!selectedOrder) return;
-    
-    // Crear un canvas con el orden
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    const width = 800;
-    const lineHeight = 30;
-    const padding = 40;
-    const itemCount = selectedOrder.items.length;
-    const height = padding * 2 + lineHeight * (itemCount + 2);
-    
-    canvas.width = width;
-    canvas.height = height;
-    
-    // Fondo
-    ctx.fillStyle = '#1e293b';
-    ctx.fillRect(0, 0, width, height);
-    
-    // Título
-    ctx.fillStyle = '#a78bfa';
-    ctx.font = 'bold 32px Inter, sans-serif';
-    ctx.fillText(selectedOrder.name, padding, padding + 30);
-    
-    // Elementos
-    ctx.fillStyle = '#f1f5f9';
-    ctx.font = '18px Inter, sans-serif';
-    
-    selectedOrder.items.forEach((item, i) => {
-      const y = padding + 80 + (i * lineHeight);
-      
-      if (item.type === 'song') {
-        const song = getItemSong(item);
-        ctx.fillText(`${i + 1}. ${song?.title || 'Sin canción'}`, padding, y);
-        
-        if (song?.artist) {
-          ctx.fillStyle = '#94a3b8';
-          ctx.font = '14px Inter, sans-serif';
-          ctx.fillText(`   ${song.artist}`, padding, y + 18);
-          ctx.fillStyle = '#f1f5f9';
-          ctx.font = '18px Inter, sans-serif';
-        }
-      } else {
-        ctx.fillText(`${i + 1}. ${item.content}`, padding, y);
-        
-        if (item.notes) {
-          ctx.fillStyle = '#94a3b8';
-          ctx.font = '14px Inter, sans-serif';
-          ctx.fillText(`   (${item.notes})`, padding, y + 18);
-          ctx.fillStyle = '#f1f5f9';
-          ctx.font = '18px Inter, sans-serif';
-        }
-      }
-    });
-    
-    // Footer
-    ctx.fillStyle = '#64748b';
-    ctx.font = '12px Inter, sans-serif';
-    ctx.fillText('Cancionero7Pro', padding, height - padding);
-    
-    // Convertir a imagen y compartir
-    canvas.toBlob(async (blob) => {
-      if (!blob) return;
-      
-      const file = new File([blob], `${selectedOrder.name}.png`, { type: 'image/png' });
-      
-      if (navigator.share && navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({
-            title: selectedOrder.name,
-            files: [file],
-          });
-        } catch {
-          // Fallback: descargar la imagen
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${selectedOrder.name}.png`;
-          a.click();
-          URL.revokeObjectURL(url);
-        }
-      } else {
-        // Fallback: descargar la imagen
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${selectedOrder.name}.png`;
-        a.click();
-        URL.revokeObjectURL(url);
-      }
-    });
-    
-    setShowShareMenu(false);
-  };
-
-  const exportOrder = () => {
-    if (!selectedOrder) return;
-    
-    const data = {
-      name: selectedOrder.name,
-      eventType: selectedOrder.eventType,
-      items: selectedOrder.items.map(item => {
-        if (item.type === 'song') {
-          const song = getItemSong(item);
-          return {
-            type: 'song',
-            title: song?.title,
-            artist: song?.artist,
-            code: song?.code,
-            key: song?.key,
-            notes: item.notes,
-          };
-        } else {
-          return {
-            type: 'text',
-            content: item.content,
-            notes: item.notes,
-          };
-        }
-      }),
-    };
-    
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${selectedOrder.name.replace(/\s+/g, '_')}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const filteredSongs = allAvailableSongs.filter(song =>
+    song.title.toLowerCase().includes(songSearchQuery.toLowerCase()) ||
+    song.artist.toLowerCase().includes(songSearchQuery.toLowerCase()) ||
+    song.code.toLowerCase().includes(songSearchQuery.toLowerCase())
+  );
 
   if (selectedOrder) {
     return (
       <div className="space-y-4 pb-20">
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={() => {
-              setSelectedOrder(null);
-              setSelectionMode(false);
-              setSelectedItems(new Set());
+              if (selectedOrder) {
+                setSelectedOrder(null);
+                setSelectionMode(false);
+                setSelectedItems(new Set());
+              } else if (onBack) {
+                onBack();
+              }
             }}
-            className="p-2 rounded-xl" 
+            className="p-2 rounded-xl"
             style={{ backgroundColor: 'var(--bg-tertiary)' }}
           >
             ←
@@ -468,44 +299,6 @@ export default function OrdersPage({ onSelectSong, onBack, initialOrderId }: {
           >
             <CheckSquare size={20} />
           </button>
-          <div className="relative" ref={shareMenuRef}>
-            <button
-              onClick={() => setShowShareMenu(!showShareMenu)}
-              className="p-2 rounded-xl"
-              style={{ backgroundColor: 'var(--bg-tertiary)' }}
-            >
-              <Share2 size={20} />
-            </button>
-            
-            {showShareMenu && (
-              <div 
-                className="absolute right-0 top-full mt-1 w-56 rounded-xl shadow-lg overflow-hidden z-50"
-                style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)' }}
-              >
-                <button
-                  onClick={shareAsText}
-                  className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:opacity-80"
-                  style={{ color: 'var(--text-primary)' }}
-                >
-                  <Share2 size={14} /> Compartir como texto
-                </button>
-                <button
-                  onClick={shareAsImage}
-                  className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:opacity-80 border-t"
-                  style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
-                >
-                  <ImageIcon size={14} /> Compartir como imagen
-                </button>
-                <button
-                  onClick={exportOrder}
-                  className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:opacity-80 border-t"
-                  style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
-                >
-                  <Download size={14} /> Exportar JSON
-                </button>
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Selection Actions */}
@@ -530,14 +323,14 @@ export default function OrdersPage({ onSelectSong, onBack, initialOrderId }: {
           {selectedOrder.items.map((item, index) => {
             const song = getItemSong(item);
             const isEditing = editingItem === item.id;
-            
+
             return (
               <motion.div
                 key={item.id}
                 layout
                 className="flex items-start gap-2 p-3 rounded-xl border"
-                style={{ 
-                  backgroundColor: 'var(--card-bg)', 
+                style={{
+                  backgroundColor: 'var(--card-bg)',
                   borderColor: selectedItems.has(item.id) ? 'var(--accent)' : 'var(--border-color)',
                   borderWidth: selectedItems.has(item.id) ? '2px' : '1px'
                 }}
@@ -574,13 +367,13 @@ export default function OrdersPage({ onSelectSong, onBack, initialOrderId }: {
                     </button>
                   </div>
                 )}
-                
+
                 {/* Item Number */}
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 mt-1"
                      style={{ backgroundColor: item.type === 'song' ? 'var(--accent-light)' : 'var(--bg-tertiary)', color: item.type === 'song' ? 'var(--accent)' : 'var(--text-muted)' }}>
                   {index + 1}
                 </div>
-                
+
                 {/* Item Content */}
                 <div className="flex-1 min-w-0" ref={isEditing ? editRef : null}>
                   {isEditing ? (
@@ -626,7 +419,7 @@ export default function OrdersPage({ onSelectSong, onBack, initialOrderId }: {
                                 onClick={() => {
                                   updateItem(item.id, { content: song.id });
                                   setSongSearchQuery('');
-                                  setEditingItem(null);
+                                  setEditingItem(null); // Cerrar edición automáticamente
                                 }}
                                 className="w-full text-left p-2 rounded hover:opacity-80 text-sm"
                                 style={{ backgroundColor: item.content === song.id ? 'var(--accent-light)' : 'transparent' }}
@@ -646,7 +439,7 @@ export default function OrdersPage({ onSelectSong, onBack, initialOrderId }: {
                     <button
                       onClick={() => {
                         if (item.type === 'song' && song) {
-                          onSelectSong(song, { type: 'order', id: selectedOrder.id, name: selectedOrder.name });
+                          onSelectSong(song);
                         }
                       }}
                       className="w-full text-left"
@@ -657,11 +450,6 @@ export default function OrdersPage({ onSelectSong, onBack, initialOrderId }: {
                           <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
                             {song.artist} • {song.key}
                           </div>
-                          {item.notes && (
-                            <div className="text-xs italic mt-1" style={{ color: 'var(--text-muted)' }}>
-                              {item.notes}
-                            </div>
-                          )}
                         </>
                       ) : item.type === 'text' ? (
                         <>
@@ -680,7 +468,7 @@ export default function OrdersPage({ onSelectSong, onBack, initialOrderId }: {
                     </button>
                   )}
                 </div>
-                
+
                 {/* Three-dot Menu */}
                 {!isEditing && !selectionMode && !reorderMode && (
                   <div className="relative" data-item-menu>
@@ -691,9 +479,9 @@ export default function OrdersPage({ onSelectSong, onBack, initialOrderId }: {
                     >
                       <MoreVertical size={16} />
                     </button>
-                    
+
                     {openMenuId === item.id && (
-                      <div 
+                      <div
                         className="absolute right-0 top-full mt-1 w-40 rounded-xl shadow-lg overflow-hidden z-50"
                         style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)' }}
                       >
@@ -721,7 +509,7 @@ export default function OrdersPage({ onSelectSong, onBack, initialOrderId }: {
               </motion.div>
             );
           })}
-          
+
           {selectedOrder.items.length === 0 && (
             <div className="text-center py-12">
               <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
@@ -763,7 +551,7 @@ export default function OrdersPage({ onSelectSong, onBack, initialOrderId }: {
                 </motion.div>
               )}
             </AnimatePresence>
-            
+
             <button
               onClick={() => setShowAddMenu(!showAddMenu)}
               className="w-14 h-14 rounded-full flex items-center justify-center shadow-xl transition-all active:scale-95 hover:scale-105"
@@ -786,9 +574,9 @@ export default function OrdersPage({ onSelectSong, onBack, initialOrderId }: {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {onBack && (
-            <button 
+            <button
               onClick={onBack}
-              className="p-2 rounded-lg" 
+              className="p-2 rounded-lg"
               style={{ backgroundColor: 'var(--bg-tertiary)' }}
             >
               ←
@@ -846,7 +634,7 @@ export default function OrdersPage({ onSelectSong, onBack, initialOrderId }: {
             </button>
           </div>
         ))}
-        
+
         {orders.length === 0 && (
           <div className="text-center py-12">
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
@@ -879,7 +667,7 @@ export default function OrdersPage({ onSelectSong, onBack, initialOrderId }: {
               style={{ backgroundColor: 'var(--card-bg)' }}
             >
               <h3 className="font-bold text-lg mb-3">Nuevo Orden de Evento</h3>
-              
+
               <input
                 type="text"
                 value={newOrderName}
