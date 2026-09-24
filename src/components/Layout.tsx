@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
-import { Home, Search, Heart, ListMusic, Settings, Menu, X, Moon, Sun, Download, Upload, Plus } from 'lucide-react';
+import { Home, Search, Heart, ListMusic, Settings, Menu, X, Moon, Sun, Download, Upload, Plus, Music } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Layout({ children, currentPage, onNavigate, onImport, onExport, onAddHymnal }: {
@@ -54,6 +54,21 @@ export default function Layout({ children, currentPage, onNavigate, onImport, on
     localStorage.removeItem('cancionero-bg-image');
   };
 
+  const menuItems = [
+    { id: 'home', label: 'Inicio', icon: Home },
+    { id: 'search', label: 'Buscar Canciones', icon: Search },
+    { id: 'favorites', label: 'Favoritos', icon: Heart },
+    { id: 'setlists', label: 'Lista de canciones', icon: ListMusic },
+    { id: 'orders', label: 'Orden de evento', icon: Music },
+    { id: 'tools', label: 'Herramientas', icon: Settings },
+  ];
+
+  const secondaryItems = [
+    { id: 'add-hymnal', label: 'Nuevo Cancionero', icon: Plus, action: onAddHymnal },
+    { id: 'import', label: 'Importar Datos', icon: Upload, action: onImport },
+    { id: 'export', label: 'Exportar Datos', icon: Download, action: onExport },
+  ];
+
   return (
     <div 
       className="min-h-screen relative" 
@@ -92,84 +107,184 @@ export default function Layout({ children, currentPage, onNavigate, onImport, on
                 initial={{ x: -300 }}
                 animate={{ x: 0 }}
                 exit={{ x: -300 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                 className="fixed left-0 top-0 bottom-0 w-80 z-50 p-6 overflow-y-auto"
                 style={{ backgroundColor: 'var(--card-bg)' }}
               >
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-bold">Menú</h2>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold"
+                         style={{ background: 'linear-gradient(135deg, #7c3aed, #a855f7)' }}>
+                      C7
+                    </div>
+                    <div>
+                      <h1 className="font-bold text-lg" style={{ color: 'var(--accent)' }}>
+                        Cancionero<span className="font-black">7Pro</span>
+                      </h1>
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>v1.0 Premium</p>
+                    </div>
+                  </div>
                   <button onClick={() => setSidebarOpen(false)} className="p-2 rounded-lg" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
-                    <X size={20} />
+                    <X size={18} />
                   </button>
                 </div>
-                <div className="space-y-2">
-                  <button onClick={() => { onImport(); setSidebarOpen(false); }} className="w-full p-3 rounded-xl text-left flex items-center gap-2" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
-                    <Upload size={16} /> Importar Datos
-                  </button>
-                  <button onClick={() => { onExport(); setSidebarOpen(false); }} className="w-full p-3 rounded-xl text-left flex items-center gap-2" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
-                    <Download size={16} /> Exportar Datos
-                  </button>
-                  <button onClick={() => { onAddHymnal(); setSidebarOpen(false); }} className="w-full p-3 rounded-xl text-left flex items-center gap-2" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
-                    <Plus size={16} /> Nuevo Cancionero
-                  </button>
-                  <button onClick={() => { fileInputRef.current?.click(); setSidebarOpen(false); }} className="w-full p-3 rounded-xl text-left flex items-center gap-2" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
-                    {bgImage ? 'Cambiar Fondo' : 'Imagen de Fondo'}
-                  </button>
-                  {bgImage && (
-                    <button onClick={() => { removeBgImage(); setSidebarOpen(false); }} className="w-full p-3 rounded-xl text-left text-red-500">
-                      Quitar Fondo
+
+                <div className="grid grid-cols-3 gap-2 mb-6">
+                  <div className="text-center p-2 rounded-lg" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+                    <div className="text-lg font-bold" style={{ color: 'var(--accent)' }}>{state.favorites.length}</div>
+                    <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Favoritos</div>
+                  </div>
+                  <div className="text-center p-2 rounded-lg" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+                    <div className="text-lg font-bold" style={{ color: 'var(--accent)' }}>{state.setlists.length}</div>
+                    <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Listas</div>
+                  </div>
+                  <div className="text-center p-2 rounded-lg" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+                    <div className="text-lg font-bold" style={{ color: 'var(--accent)' }}>{state.orders.length}</div>
+                    <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Órdenes</div>
+                  </div>
+                </div>
+
+                <nav>
+                  <div className="mb-4">
+                    <p className="text-xs font-semibold uppercase tracking-wider mb-2 px-3" style={{ color: 'var(--text-muted)' }}>
+                      Navegación
+                    </p>
+                    {menuItems.map(item => (
+                      <button
+                        key={item.id}
+                        onClick={() => { onNavigate(item.id); setSidebarOpen(false); }}
+                        className="w-full flex items-center gap-3 px-3 py-3 rounded-xl mb-1 transition-all"
+                        style={{
+                          backgroundColor: currentPage === item.id ? 'var(--accent-light)' : 'transparent',
+                          color: currentPage === item.id ? 'var(--accent)' : 'var(--text-primary)',
+                        }}
+                      >
+                        <item.icon size={20} />
+                        <span className="font-medium text-sm">{item.label}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="mb-4">
+                    <p className="text-xs font-semibold uppercase tracking-wider mb-2 px-3" style={{ color: 'var(--text-muted)' }}>
+                      Gestión
+                    </p>
+                    {secondaryItems.map(item => (
+                      <button
+                        key={item.id}
+                        onClick={() => { item.action?.(); setSidebarOpen(false); }}
+                        className="w-full flex items-center gap-3 px-3 py-3 rounded-xl mb-1 transition-all hover:opacity-80"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
+                        <item.icon size={20} />
+                        <span className="font-medium text-sm">{item.label}</span>
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => { fileInputRef.current?.click(); setSidebarOpen(false); }}
+                      className="w-full flex items-center gap-3 px-3 py-3 rounded-xl mb-1 transition-all hover:opacity-80"
+                      style={{ color: 'var(--text-secondary)' }}
+                    >
+                      <Menu size={20} />
+                      <span className="font-medium text-sm">{bgImage ? 'Cambiar Fondo' : 'Imagen de Fondo'}</span>
                     </button>
-                  )}
+                    {bgImage && (
+                      <button
+                        onClick={() => { removeBgImage(); setSidebarOpen(false); }}
+                        className="w-full flex items-center gap-3 px-3 py-3 rounded-xl mb-1 transition-all hover:opacity-80 text-red-500"
+                      >
+                        <X size={20} />
+                        <span className="font-medium text-sm">Quitar Fondo</span>
+                      </button>
+                    )}
+                  </div>
+                </nav>
+
+                <div className="mt-6 pt-6 border-t" style={{ borderColor: 'var(--border-color)' }}>
+                  <button
+                    onClick={() => setTheme(state.preferences.theme === 'dark' ? 'light' : 'dark')}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium"
+                    style={{ backgroundColor: 'var(--bg-tertiary)' }}
+                  >
+                    {state.preferences.theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+                    Modo {state.preferences.theme === 'dark' ? 'Claro' : 'Oscuro'}
+                  </button>
                 </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleBgImageChange}
-                  style={{ display: 'none' }}
-                />
               </motion.aside>
             </>
           )}
         </AnimatePresence>
 
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleBgImageChange}
+          style={{ display: 'none' }}
+        />
+
         {/* Header */}
-        <header className="sticky top-0 z-30 backdrop-blur-md border-b" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border-color)' }}>
-          <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+        <header className="sticky top-0 z-30 backdrop-blur-xl border-b"
+                style={{ backgroundColor: 'color-mix(in srgb, var(--bg-primary) 85%, transparent)', borderColor: 'var(--border-color)' }}>
+          <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="p-2.5 rounded-xl transition-all active:scale-95"
+                style={{ backgroundColor: 'var(--bg-tertiary)' }}
+              >
                 <Menu size={20} />
               </button>
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs"
-                   style={{ background: 'linear-gradient(135deg, #7c3aed, #a855f7)' }}>
-                C7
-              </div>
-              <div>
-                <h1 className="text-lg font-bold leading-tight" style={{ color: 'var(--accent)' }}>
-                  Cancionero<span className="font-black">7Pro</span>
-                </h1>
-                <p className="text-[9px] leading-tight" style={{ color: 'var(--text-muted)' }}>
-                  Gestión Profesional de Alabanzas
-                </p>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
+                     style={{ background: 'linear-gradient(135deg, #7c3aed, #a855f7)' }}>
+                  C7
+                </div>
+                <div className="min-w-0">
+                  <h1 className="text-sm sm:text-lg font-bold leading-tight truncate" style={{ color: 'var(--accent)' }}>
+                    Cancionero<span className="font-black">7Pro</span>
+                  </h1>
+                  <p className="text-[9px] sm:text-[10px] leading-tight truncate" style={{ color: 'var(--text-muted)' }}>
+                    Gestión Profesional de Alabanzas
+                  </p>
+                </div>
               </div>
             </div>
-            <button
-              onClick={() => setTheme(state.preferences.theme === 'dark' ? 'light' : 'dark')}
-              className="p-2 rounded-lg"
-              style={{ backgroundColor: 'var(--bg-tertiary)' }}
-            >
-              {state.preferences.theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onNavigate('search')}
+                className="p-2.5 rounded-xl transition-all active:scale-95"
+                style={{ backgroundColor: 'var(--bg-tertiary)' }}
+              >
+                <Search size={18} />
+              </button>
+              <button
+                onClick={() => setTheme(state.preferences.theme === 'dark' ? 'light' : 'dark')}
+                className="p-2.5 rounded-xl transition-all active:scale-95"
+                style={{ backgroundColor: 'var(--bg-tertiary)' }}
+              >
+                {state.preferences.theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+            </div>
           </div>
         </header>
 
         {/* Main Content */}
         <main className="max-w-6xl mx-auto px-4 py-6 pb-24">
-          {children}
+          <motion.div
+            key={currentPage}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            {children}
+          </motion.div>
         </main>
 
         {/* Bottom Navigation */}
-        <nav className="fixed bottom-0 left-0 right-0 z-30 border-t backdrop-blur-md"
-             style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border-color)' }}>
+        <nav className="fixed bottom-0 left-0 right-0 z-30 border-t backdrop-blur-xl"
+             style={{ backgroundColor: 'color-mix(in srgb, var(--bg-primary) 90%, transparent)', borderColor: 'var(--border-color)' }}>
           <div className="max-w-6xl mx-auto flex">
             {[
               { id: 'home', label: 'Inicio', icon: Home },
@@ -233,7 +348,7 @@ export default function Layout({ children, currentPage, onNavigate, onImport, on
                               color: currentPage === 'orders' ? 'var(--accent)' : 'var(--text-primary)'
                             }}
                           >
-                            <ListMusic size={16} />
+                            <Music size={16} />
                             <span className="font-medium">Orden de evento</span>
                           </button>
                         </motion.div>
@@ -244,20 +359,20 @@ export default function Layout({ children, currentPage, onNavigate, onImport, on
               }
               
               return (
-                <button
-                  key={item.id}
-                  onClick={() => onNavigate(item.id)}
-                  className={`flex-1 flex flex-col items-center py-3 px-1 transition-all ${
-                    isActive ? 'scale-105' : 'opacity-60'
-                  }`}
-                  style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)' }}
-                >
-                  <item.icon size={20} strokeWidth={isActive ? 2.5 : 1.5} />
-                  <span className="text-[10px] font-semibold mt-1">{item.label}</span>
-                  {isActive && (
-                    <div className="absolute top-0 w-8 h-0.5 rounded-full" style={{ backgroundColor: 'var(--accent)' }} />
-                  )}
-                </button>
+              <button
+                key={item.id}
+                onClick={() => onNavigate(item.id)}
+                className={`flex-1 flex flex-col items-center py-3 px-1 transition-all ${
+                  isActive ? 'scale-105' : 'opacity-60'
+                }`}
+                style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)' }}
+              >
+                <item.icon size={20} strokeWidth={isActive ? 2.5 : 1.5} />
+                <span className="text-[10px] font-semibold mt-1">{item.label}</span>
+                {isActive && (
+                  <div className="absolute top-0 w-8 h-0.5 rounded-full" style={{ backgroundColor: 'var(--accent)' }} />
+                )}
+              </button>
               );
             })}
           </div>

@@ -26,8 +26,6 @@ function AppContent() {
   const [selectedSetlistId, setSelectedSetlistId] = useState<string | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [editingSong, setEditingSong] = useState<Song | null>(null);
-  const [showImportModal, setShowImportModal] = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false);
   const [showAddHymnalModal, setShowAddHymnalModal] = useState(false);
 
   useEffect(() => {
@@ -64,11 +62,9 @@ function AppContent() {
         } else if (songSource.type === 'list') {
           setSelectedSong(null);
           setCurrentPage('setlists');
-          // Mantener selectedSetlistId para que SetlistsPage abra la lista correcta
         } else if (songSource.type === 'order') {
           setSelectedSong(null);
           setCurrentPage('orders');
-          // Mantener selectedOrderId para que OrdersPage abra el orden correcto
         } else {
           setSelectedSong(null);
           setCurrentPage(previousPage);
@@ -110,26 +106,26 @@ function AppContent() {
     setSelectedSong(null);
     setSelectedHymnal(null);
     setPreviousHymnal(null);
-    setSelectedSetlistId(null);
-    setSelectedOrderId(null);
     setEditingSong(null);
   }, [currentPage]);
 
   const handleImport = useCallback(() => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.json';
-    input.onchange = (e: any) => {
-      const file = e.target.files[0];
+    input.accept = '.json,.txt';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = (ev) => {
         try {
-          const data = JSON.parse(event.target?.result as string);
-          localStorage.setItem('cancionero-ruah-state', JSON.stringify(data));
-          window.location.reload();
-        } catch (error) {
-          alert('Error al importar el archivo');
+          const data = JSON.parse(ev.target?.result as string);
+          if (data.favorites && data.setlists && data.preferences) {
+            localStorage.setItem('cancionero-ruah-state', JSON.stringify(data));
+            window.location.reload();
+          }
+        } catch {
+          alert('Error al importar el archivo.');
         }
       };
       reader.readAsText(file);
@@ -143,7 +139,7 @@ function AppContent() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'cancionero-backup.json';
+    a.download = `cancionero7pro-backup-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }, [state]);
@@ -174,7 +170,7 @@ function AppContent() {
     return (
       <Layout currentPage={currentPage} onNavigate={handleNavigate}
               onImport={handleImport} onExport={handleExport} onAddHymnal={() => setShowAddHymnalModal(true)}>
-        <HymnalView hymnal={selectedHymnal} onSelectSong={handleSelectSong} onBack={handleBack} />
+        <HymnalView hymnal={selectedHymnal} onSelectSong={(song) => handleSelectSong(song, { type: 'hymnal', id: selectedHymnal.id, name: selectedHymnal.name } as any)} onBack={handleBack} />
       </Layout>
     );
   }

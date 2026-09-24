@@ -1,5 +1,6 @@
+import { useMemo } from 'react';
 import { Song, Hymnal } from '../types';
-import { hymnals, songs } from '../data/songs';
+import { songs as allSongs, hymnals } from '../data/songs';
 import { useApp } from '../context/AppContext';
 import { Star, ChevronRight, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -11,8 +12,26 @@ export default function HomePage({ onSelectSong, onSelectHymnal, onSearch, onAdd
   onAddHymnal: () => void;
 }) {
   const { state, toggleFavorite, isFavorite } = useApp();
-  const allHymnals = [...hymnals, ...state.customHymnals];
-  const allSongs = [...songs, ...state.customSongs];
+
+  const allAvailableSongs = useMemo(() => {
+    const customSongsMap = new Map(state.customSongs.map(s => [s.id, s]));
+    const combinedSongs = allSongs.map(song => customSongsMap.get(song.id) || song);
+    const defaultSongIds = new Set(allSongs.map(s => s.id));
+    const newCustomSongs = state.customSongs.filter(s => !defaultSongIds.has(s.id));
+    return [...combinedSongs, ...newCustomSongs];
+  }, [state.customSongs]);
+
+  const allHymnals = useMemo(() => {
+    const customHymnalsMap = new Map(state.customHymnals.map(h => [h.id, h]));
+    const combinedHymnals = hymnals.map(hymnal => customHymnalsMap.get(hymnal.id) || hymnal);
+    const defaultHymnalIds = new Set(hymnals.map(h => h.id));
+    const newCustomHymnals = state.customHymnals.filter(h => !defaultHymnalIds.has(h.id));
+    return [...combinedHymnals, ...newCustomHymnals];
+  }, [state.customHymnals]);
+
+  const featuredSongs = useMemo(() => {
+    return allAvailableSongs.slice(0, 6);
+  }, [allAvailableSongs]);
 
   return (
     <div className="space-y-6">
@@ -50,7 +69,7 @@ export default function HomePage({ onSelectSong, onSelectHymnal, onSearch, onAdd
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {allHymnals.map((hymnal, idx) => {
-            const hymnalSongs = allSongs.filter(s => s.hymnalId === hymnal.id);
+            const hymnalSongs = allAvailableSongs.filter(s => s.hymnalId === hymnal.id);
             return (
               <motion.button
                 key={hymnal.id}
@@ -95,25 +114,43 @@ export default function HomePage({ onSelectSong, onSelectHymnal, onSearch, onAdd
 
       {/* Canciones Destacadas */}
       <section>
-        <h2 className="text-lg font-bold mb-3">Destacadas</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold">Destacadas</h2>
+          <button onClick={onSearch} className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>
+            Ver todas →
+          </button>
+        </div>
         <div className="space-y-2">
-          {allSongs.slice(0, 5).map(song => (
-            <div key={song.id} className="flex items-center gap-3 p-3 rounded-xl border" style={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--border-color)' }}>
-              <button onClick={() => onSelectSong(song)} className="flex-1 text-left">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--accent)' }}>
-                    {song.code}
-                  </span>
-                  <span className="font-medium text-sm">{song.title}</span>
+          {featuredSongs.map((song, idx) => (
+            <motion.div
+              key={song.id}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: idx * 0.05 }}
+              className="flex items-center gap-3 p-3 rounded-2xl border transition-all hover:scale-[1.01]"
+              style={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--border-color)', boxShadow: 'var(--card-shadow)' }}
+            >
+              <button onClick={() => onSelectSong(song)} className="flex-1 text-left flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold"
+                     style={{ backgroundColor: 'var(--accent-light)', color: 'var(--accent)' }}>
+                  {song.code.charAt(0)}
                 </div>
-                <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                  {song.artist} • {song.key}
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-sm truncate">{song.title}</div>
+                  <div className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+                    {song.artist} • {song.key} • {song.timeSignature}
+                  </div>
                 </div>
+                <ChevronRight size={16} style={{ color: 'var(--text-muted)' }} />
               </button>
-              <button onClick={() => toggleFavorite(song.id)} style={{ color: isFavorite(song.id) ? 'var(--gold)' : 'var(--text-muted)' }}>
+              <button
+                onClick={(e) => { e.stopPropagation(); toggleFavorite(song.id); }}
+                className="p-2 rounded-xl"
+                style={{ color: isFavorite(song.id) ? 'var(--gold)' : 'var(--text-muted)' }}
+              >
                 <Star size={18} fill={isFavorite(song.id) ? 'currentColor' : 'none'} />
               </button>
-            </div>
+            </motion.div>
           ))}
         </div>
       </section>
