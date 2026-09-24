@@ -282,25 +282,25 @@ export default function SongView({ song: initialSong, onBack, onEdit, songSource
           i++;
 
           elements.push(
-            <div key={lineIndex++} className="mb-4">
+            <div key={lineIndex++} className="mb-4" style={{ border: 'none', borderBottom: 'none', borderTop: 'none', boxShadow: 'none' }}>
               {preferences.showChords && (
-                <div className="font-mono text-sm mb-1 whitespace-pre overflow-x-auto"
-                     style={{ color: 'var(--accent)', fontWeight: 800, letterSpacing: '0.05em' }}>
+                <div className="font-mono text-sm mb-1 whitespace-pre"
+                     style={{ color: 'var(--accent)', fontWeight: 800, letterSpacing: '0.05em', border: 'none', borderBottom: 'none', borderTop: 'none', boxShadow: 'none', outline: 'none' }}>
                   {chordLine}
                 </div>
               )}
               <div className="font-lyrics leading-relaxed whitespace-pre-wrap"
-                   style={{ fontSize: `${preferences.fontSize}px` }}>
+                   style={{ fontSize: `${preferences.fontSize}px`, border: 'none', borderTop: 'none', borderBottom: 'none', boxShadow: 'none', outline: 'none' }}>
                 {lyricLine}
               </div>
             </div>
           );
         } else {
           elements.push(
-            <div key={lineIndex++} className="mb-2">
+            <div key={lineIndex++} className="mb-2" style={{ border: 'none', borderBottom: 'none', borderTop: 'none', boxShadow: 'none' }}>
               {preferences.showChords && (
-                <div className="font-mono text-sm whitespace-pre overflow-x-auto"
-                     style={{ color: 'var(--accent)', fontWeight: 800, letterSpacing: '0.05em' }}>
+                <div className="font-mono text-sm whitespace-pre"
+                     style={{ color: 'var(--accent)', fontWeight: 800, letterSpacing: '0.05em', border: 'none', borderBottom: 'none', borderTop: 'none', boxShadow: 'none', outline: 'none' }}>
                   {chordLine}
                 </div>
               )}
@@ -620,7 +620,7 @@ export default function SongView({ song: initialSong, onBack, onEdit, songSource
           </div>
         )}
 
-        <div className="p-5 md:p-8">
+        <div className="p-5 md:p-8" style={{ border: 'none', borderTop: 'none', borderBottom: 'none', boxShadow: 'none' }}>
           {renderLyrics()}
         </div>
       </div>
