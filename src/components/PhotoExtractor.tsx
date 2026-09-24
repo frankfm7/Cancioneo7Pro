@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createWorker } from 'tesseract.js';
-import { Camera, Upload, X, Loader, Check } from 'lucide-react';
+import { Camera, Upload, X, Loader } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface PhotoExtractorProps {
@@ -12,10 +12,9 @@ export default function PhotoExtractor({ onClose, onExtract }: PhotoExtractorPro
   const [image, setImage] = useState<string | null>(null);
   const [extracting, setExtracting] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [extractedTitle, setExtractedTitle] = useState('');
-  const [extractedArtist, setExtractedArtist] = useState('');
-  const [extractedLyrics, setExtractedLyrics] = useState('');
-  const [editMode, setEditMode] = useState(false);
+  const [extractedText, setExtractedText] = useState('');
+  const [title, setTitle] = useState('');
+  const [artist, setArtist] = useState('');
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -36,7 +35,7 @@ export default function PhotoExtractor({ onClose, onExtract }: PhotoExtractorPro
 
     try {
       const worker = await createWorker('spa+eng', 1, {
-        logger: (m: any) => {
+        logger: (m) => {
           if (m.progress) {
             setProgress(Math.round(m.progress * 100));
           }
@@ -44,33 +43,24 @@ export default function PhotoExtractor({ onClose, onExtract }: PhotoExtractorPro
       });
 
       const response = await worker.recognize(image);
-      const text = response.data.text;
+      const extracted = response['data'];
+      const text = extracted.text;
       await worker.terminate();
 
-      // Parsear el texto extraído
-      const lines = text.split('\n')
-        .map((line: string) => line.trim())
-        .filter((line: string) => line.length > 0);
+      setExtractedText(text);
 
-      // Intentar extraer título y artista de las primeras líneas
-      let title = '';
-      let artist = '';
-      let lyrics = '';
-
+      // Intentar extraer título y artista del texto
+      const lines = text.split('\n').filter(l => l.trim());
       if (lines.length > 0) {
-        title = lines[0];
-      }
-      if (lines.length > 1) {
-        artist = lines[1];
-      }
-      if (lines.length > 2) {
-        lyrics = lines.slice(2).join('\n');
+        setTitle(lines[0].trim());
+        if (lines.length > 1) {
+          setArtist(lines[1].trim());
+        }
       }
 
-      setExtractedTitle(title);
-      setExtractedArtist(artist);
-      setExtractedLyrics(lyrics);
-      setEditMode(true);
+      // Convertir el texto extraído a formato de acordes
+      const formattedLyrics = formatExtractedLyrics(text);
+      setExtractedText(formattedLyrics);
     } catch (error) {
       console.error('Error extracting text:', error);
       alert('Error al extraer texto de la imagen. Por favor intenta con otra imagen.');
@@ -79,11 +69,41 @@ export default function PhotoExtractor({ onClose, onExtract }: PhotoExtractorPro
     }
   };
 
+  const formatExtractedLyrics = (text: string): string => {
+    // Intentar detectar patrones de acordes y formatear
+    const lines = text.split('\n');
+    const formatted: string[] = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      // Detectar si la línea parece ser acordes (contiene notas musicales)
+      const chordPattern = /\b[CDEFGAB](#|b)?(m|M|Maj|min|dim|aug|sus|add)?[0-9]?\b/g;
+      const hasChords = (line.match(chordPattern) || []).length >= 2;
+
+      if (hasChords) {
+        // Si es una línea de acordes, agregar // al inicio
+        formatted.push(`//${line}`);
+        // Si la siguiente línea existe y no es de acordes, es la letra
+        if (i + 1 < lines.length && !lines[i + 1].trim().match(chordPattern)) {
+          formatted.push(lines[i + 1].trim());
+          i++; // Saltar la línea de letra
+        }
+      } else {
+        // Si no es acordes, agregar como letra normal
+        formatted.push(line);
+      }
+    }
+
+    return formatted.join('\n');
+  };
+
   const handleConfirm = () => {
     onExtract({
-      title: extractedTitle,
-      artist: extractedArtist,
-      lyrics: extractedLyrics,
+      title: title.trim() || 'Canción Extraída',
+      artist: artist.trim() || 'Artista Desconocido',
+      lyrics: extractedText,
     });
   };
 
@@ -126,45 +146,26 @@ export default function PhotoExtractor({ onClose, onExtract }: PhotoExtractorPro
                 className="hidden"
                 id="photo-upload"
               />
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={handleImageUpload}
-                className="hidden"
-                id="photo-camera"
-              />
-              <div className="flex gap-3 justify-center">
-                <label
-                  htmlFor="photo-upload"
-                  className="inline-block px-6 py-3 rounded-xl font-medium cursor-pointer"
-                  style={{ backgroundColor: 'var(--accent)', color: 'white' }}
-                >
-                  <Upload size={20} className="inline mr-2" />
-                  Galería
-                </label>
-                <label
-                  htmlFor="photo-camera"
-                  className="inline-block px-6 py-3 rounded-xl font-medium cursor-pointer"
-                  style={{ backgroundColor: 'var(--accent)', color: 'white' }}
-                >
-                  <Camera size={20} className="inline mr-2" />
-                  Tomar Foto
-                </label>
-              </div>
+              <label
+                htmlFor="photo-upload"
+                className="inline-block px-6 py-3 rounded-xl font-medium cursor-pointer"
+                style={{ backgroundColor: 'var(--accent)', color: 'white' }}
+              >
+                <Upload size={20} className="inline mr-2" />
+                Seleccionar Imagen
+              </label>
             </div>
           </div>
         ) : (
           <div className="space-y-4">
             <div className="relative">
-              <img src={image} alt="Uploaded" className="w-full rounded-xl max-h-64 object-cover" />
+              <img src={image} alt="Uploaded" className="w-full rounded-xl" />
               <button
                 onClick={() => {
                   setImage(null);
-                  setExtractedTitle('');
-                  setExtractedArtist('');
-                  setExtractedLyrics('');
-                  setEditMode(false);
+                  setExtractedText('');
+                  setTitle('');
+                  setArtist('');
                 }}
                 className="absolute top-2 right-2 p-2 rounded-full"
                 style={{ backgroundColor: 'rgba(0,0,0,0.7)', color: 'white' }}
@@ -173,14 +174,14 @@ export default function PhotoExtractor({ onClose, onExtract }: PhotoExtractorPro
               </button>
             </div>
 
-            {!editMode ? (
+            {!extractedText ? (
               <button
                 onClick={extractText}
                 disabled={extracting}
                 className="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2"
-                style={{ 
-                  backgroundColor: extracting ? 'var(--bg-tertiary)' : 'var(--accent)', 
-                  color: extracting ? 'var(--text-muted)' : 'white' 
+                style={{
+                  backgroundColor: extracting ? 'var(--bg-tertiary)' : 'var(--accent)',
+                  color: extracting ? 'var(--text-muted)' : 'white'
                 }}
               >
                 {extracting ? (
@@ -197,59 +198,51 @@ export default function PhotoExtractor({ onClose, onExtract }: PhotoExtractorPro
               </button>
             ) : (
               <div className="space-y-3">
-                <h3 className="font-semibold mb-2">Información Extraída (editable)</h3>
-
                 <div>
-                  <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-muted)' }}>
-                    Título
-                  </label>
+                  <label className="text-sm font-semibold mb-2 block">Título</label>
                   <input
-                    type="text"
-                    value={extractedTitle}
-                    onChange={e => setExtractedTitle(e.target.value)}
-                    className="w-full p-2 rounded-lg border text-sm"
+                    value={title}
+                    onChange={e => setTitle(e.target.value)}
+                    className="w-full p-3 rounded-xl border"
                     style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }}
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-muted)' }}>
-                    Artista
-                  </label>
+                  <label className="text-sm font-semibold mb-2 block">Artista</label>
                   <input
-                    type="text"
-                    value={extractedArtist}
-                    onChange={e => setExtractedArtist(e.target.value)}
-                    className="w-full p-2 rounded-lg border text-sm"
+                    value={artist}
+                    onChange={e => setArtist(e.target.value)}
+                    className="w-full p-3 rounded-xl border"
                     style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }}
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-muted)' }}>
-                    Letra
-                  </label>
+                  <label className="text-sm font-semibold mb-2 block">Letra Extraída (editable)</label>
                   <textarea
-                    value={extractedLyrics}
-                    onChange={e => setExtractedLyrics(e.target.value)}
-                    className="w-full p-2 rounded-lg border text-sm font-mono resize-none"
-                    style={{ 
-                      backgroundColor: 'var(--bg-secondary)', 
-                      borderColor: 'var(--border-color)', 
+                    value={extractedText}
+                    onChange={e => setExtractedText(e.target.value)}
+                    className="w-full p-3 rounded-xl border font-mono resize-none"
+                    style={{
+                      backgroundColor: 'var(--bg-secondary)',
+                      borderColor: 'var(--border-color)',
                       color: 'var(--text-primary)',
-                      minHeight: '200px',
+                      minHeight: '300px',
                       lineHeight: '1.8'
                     }}
                   />
+                  <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                    Revisa y edita el texto extraído antes de guardar
+                  </p>
                 </div>
 
-                <div className="flex gap-3 mt-4">
+                <div className="flex gap-3">
                   <button
                     onClick={() => {
-                      setExtractedTitle('');
-                      setExtractedArtist('');
-                      setExtractedLyrics('');
-                      setEditMode(false);
+                      setExtractedText('');
+                      setTitle('');
+                      setArtist('');
                     }}
                     className="flex-1 py-3 rounded-xl font-medium"
                     style={{ backgroundColor: 'var(--bg-tertiary)' }}
@@ -258,10 +251,9 @@ export default function PhotoExtractor({ onClose, onExtract }: PhotoExtractorPro
                   </button>
                   <button
                     onClick={handleConfirm}
-                    className="flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2"
+                    className="flex-1 py-3 rounded-xl font-bold"
                     style={{ backgroundColor: 'var(--accent)', color: 'white' }}
                   >
-                    <Check size={20} />
                     Confirmar
                   </button>
                 </div>
