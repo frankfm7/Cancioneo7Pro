@@ -21,6 +21,9 @@ export default function OrdersPage({ onSelectSong, onBack }: { onSelectSong: (so
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [songSearchQuery, setSongSearchQuery] = useState('');
   const [showSelectionMenu, setShowSelectionMenu] = useState(false);
+  const [orderSelectionMode, setOrderSelectionMode] = useState(false);
+  const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
+  const [showOrderSelectionMenu, setShowOrderSelectionMenu] = useState(false);
 
   const orders = state.orders || [];
   const allAvailableSongs = [...allSongs, ...(state.customSongs || [])];
@@ -71,16 +74,19 @@ export default function OrdersPage({ onSelectSong, onBack }: { onSelectSong: (so
       if (!target.closest('[data-selection-menu]')) {
         setShowSelectionMenu(false);
       }
+      if (!target.closest('[data-order-selection-menu]')) {
+        setShowOrderSelectionMenu(false);
+      }
     };
 
-    if (openMenuId || showSelectionMenu) {
+    if (openMenuId || showSelectionMenu || showOrderSelectionMenu) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [openMenuId, showSelectionMenu]);
+  }, [openMenuId, showSelectionMenu, showOrderSelectionMenu]);
 
   const createOrder = () => {
     const newOrder: Order = {
@@ -256,6 +262,101 @@ export default function OrdersPage({ onSelectSong, onBack }: { onSelectSong: (so
     } else {
       setSelectedItems(new Set(selectedOrder.items.map(item => item.id)));
     }
+  };
+
+  // Funciones para selección de órdenes completos
+  const toggleOrderSelection = (orderId: string) => {
+    const newSelected = new Set(selectedOrders);
+    if (newSelected.has(orderId)) {
+      newSelected.delete(orderId);
+    } else {
+      newSelected.add(orderId);
+    }
+    setSelectedOrders(newSelected);
+  };
+
+  const selectAllOrders = () => {
+    if (selectedOrders.size === orders.length) {
+      setSelectedOrders(new Set());
+    } else {
+      setSelectedOrders(new Set(orders.map(o => o.id)));
+    }
+  };
+
+  const deleteSelectedOrders = () => {
+    if (selectedOrders.size === 0) return;
+    
+    if (!confirm(`¿Eliminar ${selectedOrders.size} orden(es)?`)) return;
+    
+    selectedOrders.forEach(orderId => {
+      removeOrder(orderId);
+    });
+    
+    setSelectedOrders(new Set());
+    setOrderSelectionMode(false);
+  };
+
+  const shareSelectedOrders = () => {
+    if (selectedOrders.size === 0) return;
+    
+    const selectedOrdersData = orders.filter(o => selectedOrders.has(o.id));
+    const text = selectedOrdersData.map(order => {
+      const items = order.items.map((item, i) => {
+        if (item.type === 'song') {
+          const song = getItemSong(item);
+          return `  ${i + 1}. ${song?.title || 'Sin canción'}`;
+        } else {
+          return `  ${i + 1}. ${item.content}`;
+        }
+      }).join('\n');
+      return `📋 ${order.name} (${order.eventType})\n${items}`;
+    }).join('\n\n');
+    
+    if (navigator.share) {
+      navigator.share({ title: 'Órdenes de evento', text });
+    } else {
+      navigator.clipboard.writeText(text);
+      alert('Órdenes copiados al portapapeles');
+    }
+  };
+
+  const exportSelectedOrders = () => {
+    if (selectedOrders.size === 0) return;
+    
+    const selectedOrdersData = orders.filter(o => selectedOrders.has(o.id));
+    const data = {
+      exportDate: new Date().toISOString(),
+      orders: selectedOrdersData.map(order => ({
+        name: order.name,
+        eventType: order.eventType,
+        items: order.items.map(item => {
+          if (item.type === 'song') {
+            const song = getItemSong(item);
+            return {
+              type: 'song',
+              title: song?.title,
+              artist: song?.artist,
+              code: song?.code,
+              key: song?.key,
+            };
+          } else {
+            return {
+              type: 'text',
+              content: item.content,
+              notes: item.notes,
+            };
+          }
+        }),
+      })),
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ordenes_seleccionados.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const copySelectedItems = () => {
@@ -734,6 +835,14 @@ export default function OrdersPage({ onSelectSong, onBack }: { onSelectSong: (so
         </div>
         <div className="flex gap-2">
           <button
+            onClick={() => setOrderSelectionMode(!orderSelectionMode)}
+            className="p-2 rounded-xl"
+            style={{ backgroundColor: orderSelectionMode ? 'var(--accent)' : 'var(--bg-tertiary)', color: orderSelectionMode ? 'white' : 'var(--text-primary)' }}
+            title={orderSelectionMode ? 'Cancelar selección' : 'Seleccionar órdenes'}
+          >
+            <CheckSquare size={20} />
+          </button>
+          <button
             onClick={() => setShowExtractor(true)}
             className="p-2 rounded-xl"
             style={{ backgroundColor: 'var(--bg-tertiary)' }}
@@ -751,30 +860,113 @@ export default function OrdersPage({ onSelectSong, onBack }: { onSelectSong: (so
         </div>
       </div>
 
+      {/* Order Selection Actions */}
+      {orderSelectionMode && (
+        <div className="flex items-center gap-2 p-3 rounded-xl" style={{ backgroundColor: 'var(--accent-light)', border: '1px solid var(--accent)' }}>
+          <button
+            onClick={selectAllOrders}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+            style={{ backgroundColor: 'var(--accent)', color: 'white' }}
+          >
+            {selectedOrders.size === orders.length ? 'Deseleccionar todo' : 'Seleccionar todo'}
+          </button>
+          {selectedOrders.size > 0 && (
+            <>
+              <span className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>
+                {selectedOrders.size} orden(es) seleccionado(s)
+              </span>
+              <div className="flex-1" />
+              <div className="relative" data-order-selection-menu>
+                <button
+                  onClick={() => setShowOrderSelectionMenu(!showOrderSelectionMenu)}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2"
+                  style={{ backgroundColor: 'var(--accent)', color: 'white' }}
+                >
+                  <MoreVertical size={16} /> Opciones
+                </button>
+                
+                {showOrderSelectionMenu && (
+                  <div
+                    className="absolute right-0 top-full mt-2 w-48 rounded-xl shadow-lg overflow-hidden z-50"
+                    style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)' }}
+                  >
+                    <button
+                      onClick={() => {
+                        shareSelectedOrders();
+                        setShowOrderSelectionMenu(false);
+                      }}
+                      className="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:opacity-80"
+                      style={{ color: 'var(--text-primary)' }}
+                    >
+                      <Share2 size={16} /> Compartir
+                    </button>
+                    <button
+                      onClick={() => {
+                        exportSelectedOrders();
+                        setShowOrderSelectionMenu(false);
+                      }}
+                      className="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:opacity-80 border-t"
+                      style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
+                    >
+                      <Download size={16} /> Exportar
+                    </button>
+                    <button
+                      onClick={() => {
+                        deleteSelectedOrders();
+                        setShowOrderSelectionMenu(false);
+                      }}
+                      className="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:opacity-80 border-t"
+                      style={{ color: '#ef4444', borderColor: 'var(--border-color)' }}
+                    >
+                      <Trash2 size={16} /> Eliminar
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       <div className="space-y-2">
         {orders.map(order => (
           <div
             key={order.id}
             className="flex items-center gap-3 p-4 rounded-xl border"
-            style={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--border-color)' }}
+            style={{ 
+              backgroundColor: 'var(--card-bg)', 
+              borderColor: selectedOrders.has(order.id) ? 'var(--accent)' : 'var(--border-color)',
+              borderWidth: selectedOrders.has(order.id) ? '2px' : '1px'
+            }}
           >
-            <button onClick={() => setSelectedOrder(order)} className="flex-1 text-left">
+            {orderSelectionMode && (
+              <button
+                onClick={() => toggleOrderSelection(order.id)}
+                className="p-1"
+                style={{ color: selectedOrders.has(order.id) ? 'var(--accent)' : 'var(--text-muted)' }}
+              >
+                {selectedOrders.has(order.id) ? <CheckSquare size={20} /> : <Square size={20} />}
+              </button>
+            )}
+            <button onClick={() => !orderSelectionMode && setSelectedOrder(order)} className="flex-1 text-left">
               <div className="font-medium">{order.name}</div>
               <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
                 {order.eventType} • {order.items.length} elementos
               </div>
             </button>
-            <button
-              onClick={() => {
-                if (confirm(`¿Eliminar "${order.name}"?`)) {
-                  removeOrder(order.id);
-                }
-              }}
-              className="p-2 rounded-lg"
-              style={{ color: '#ef4444' }}
-            >
-              <Trash2 size={16} />
-            </button>
+            {!orderSelectionMode && (
+              <button
+                onClick={() => {
+                  if (confirm(`¿Eliminar "${order.name}"?`)) {
+                    removeOrder(order.id);
+                  }
+                }}
+                className="p-2 rounded-lg"
+                style={{ color: '#ef4444' }}
+              >
+                <Trash2 size={16} />
+              </button>
+            )}
           </div>
         ))}
 

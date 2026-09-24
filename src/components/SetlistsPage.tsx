@@ -22,6 +22,9 @@ export default function SetlistsPage({ onSelectSong, onBack }: { onSelectSong: (
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [showAddToListModal, setShowAddToListModal] = useState(false);
   const [showSelectionMenu, setShowSelectionMenu] = useState(false);
+  const [listSelectionMode, setListSelectionMode] = useState(false);
+  const [selectedLists, setSelectedLists] = useState<Set<string>>(new Set());
+  const [showListSelectionMenu, setShowListSelectionMenu] = useState(false);
 
   const editRef = useRef<HTMLDivElement>(null);
 
@@ -107,16 +110,19 @@ export default function SetlistsPage({ onSelectSong, onBack }: { onSelectSong: (
       if (!target.closest('[data-selection-menu]')) {
         setShowSelectionMenu(false);
       }
+      if (!target.closest('[data-list-selection-menu]')) {
+        setShowListSelectionMenu(false);
+      }
     };
 
-    if (showSelectionMenu) {
+    if (showSelectionMenu || showListSelectionMenu) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showSelectionMenu]);
+  }, [showSelectionMenu, showListSelectionMenu]);
 
   const createSetlist = () => {
     if (newSetlistName.trim()) {
@@ -173,6 +179,87 @@ export default function SetlistsPage({ onSelectSong, onBack }: { onSelectSong: (
     } else {
       setSelectedItems(new Set(currentSetlist.songs.map(s => s.songId)));
     }
+  };
+
+  // Funciones para selección de listas completas
+  const toggleListSelection = (listId: string) => {
+    const newSelected = new Set(selectedLists);
+    if (newSelected.has(listId)) {
+      newSelected.delete(listId);
+    } else {
+      newSelected.add(listId);
+    }
+    setSelectedLists(newSelected);
+  };
+
+  const selectAllLists = () => {
+    if (selectedLists.size === state.setlists.length) {
+      setSelectedLists(new Set());
+    } else {
+      setSelectedLists(new Set(state.setlists.map(l => l.id)));
+    }
+  };
+
+  const deleteSelectedLists = () => {
+    if (selectedLists.size === 0) return;
+    
+    if (!confirm(`¿Eliminar ${selectedLists.size} lista(s)?`)) return;
+    
+    selectedLists.forEach(listId => {
+      removeSetlist(listId);
+    });
+    
+    setSelectedLists(new Set());
+    setListSelectionMode(false);
+  };
+
+  const shareSelectedLists = () => {
+    if (selectedLists.size === 0) return;
+    
+    const selectedListsData = state.setlists.filter(l => selectedLists.has(l.id));
+    const text = selectedListsData.map(list => {
+      const songs = list.songs.map((ss, i) => {
+        const song = allAvailableSongs.find(s => s.id === ss.songId);
+        return `  ${i + 1}. ${song?.title || 'Sin canción'}`;
+      }).join('\n');
+      return `📋 ${list.name} (${list.songs.length} canciones)\n${songs}`;
+    }).join('\n\n');
+    
+    if (navigator.share) {
+      navigator.share({ title: 'Listas de canciones', text });
+    } else {
+      navigator.clipboard.writeText(text);
+      alert('Listas copiadas al portapapeles');
+    }
+  };
+
+  const exportSelectedLists = () => {
+    if (selectedLists.size === 0) return;
+    
+    const selectedListsData = state.setlists.filter(l => selectedLists.has(l.id));
+    const data = {
+      exportDate: new Date().toISOString(),
+      lists: selectedListsData.map(list => ({
+        name: list.name,
+        songs: list.songs.map(ss => {
+          const song = allAvailableSongs.find(s => s.id === ss.songId);
+          return {
+            title: song?.title,
+            artist: song?.artist,
+            code: song?.code,
+            key: song?.key,
+          };
+        }),
+      })),
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `listas_seleccionadas.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const copySelectedItems = () => {
@@ -827,6 +914,14 @@ export default function SetlistsPage({ onSelectSong, onBack }: { onSelectSong: (
         </div>
         <div className="flex gap-2">
           <button
+            onClick={() => setListSelectionMode(!listSelectionMode)}
+            className="p-2 rounded-xl"
+            style={{ backgroundColor: listSelectionMode ? 'var(--accent)' : 'var(--bg-tertiary)', color: listSelectionMode ? 'white' : 'var(--text-primary)' }}
+            title={listSelectionMode ? 'Cancelar selección' : 'Seleccionar listas'}
+          >
+            <CheckSquare size={20} />
+          </button>
+          <button
             onClick={() => setShowExtractor(true)}
             className="p-2 rounded-xl"
             style={{ backgroundColor: 'var(--bg-tertiary)' }}
@@ -844,30 +939,113 @@ export default function SetlistsPage({ onSelectSong, onBack }: { onSelectSong: (
         </div>
       </div>
 
+      {/* List Selection Actions */}
+      {listSelectionMode && (
+        <div className="flex items-center gap-2 p-3 rounded-xl" style={{ backgroundColor: 'var(--accent-light)', border: '1px solid var(--accent)' }}>
+          <button
+            onClick={selectAllLists}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+            style={{ backgroundColor: 'var(--accent)', color: 'white' }}
+          >
+            {selectedLists.size === state.setlists.length ? 'Deseleccionar todo' : 'Seleccionar todo'}
+          </button>
+          {selectedLists.size > 0 && (
+            <>
+              <span className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>
+                {selectedLists.size} lista(s) seleccionada(s)
+              </span>
+              <div className="flex-1" />
+              <div className="relative" data-list-selection-menu>
+                <button
+                  onClick={() => setShowListSelectionMenu(!showListSelectionMenu)}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2"
+                  style={{ backgroundColor: 'var(--accent)', color: 'white' }}
+                >
+                  <MoreVertical size={16} /> Opciones
+                </button>
+                
+                {showListSelectionMenu && (
+                  <div
+                    className="absolute right-0 top-full mt-2 w-48 rounded-xl shadow-lg overflow-hidden z-50"
+                    style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)' }}
+                  >
+                    <button
+                      onClick={() => {
+                        shareSelectedLists();
+                        setShowListSelectionMenu(false);
+                      }}
+                      className="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:opacity-80"
+                      style={{ color: 'var(--text-primary)' }}
+                    >
+                      <Share2 size={16} /> Compartir
+                    </button>
+                    <button
+                      onClick={() => {
+                        exportSelectedLists();
+                        setShowListSelectionMenu(false);
+                      }}
+                      className="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:opacity-80 border-t"
+                      style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
+                    >
+                      <Download size={16} /> Exportar
+                    </button>
+                    <button
+                      onClick={() => {
+                        deleteSelectedLists();
+                        setShowListSelectionMenu(false);
+                      }}
+                      className="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:opacity-80 border-t"
+                      style={{ color: '#ef4444', borderColor: 'var(--border-color)' }}
+                    >
+                      <Trash2 size={16} /> Eliminar
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       <div className="space-y-2">
         {state.setlists.map(setlist => (
           <div
             key={setlist.id}
             className="flex items-center gap-3 p-4 rounded-xl border"
-            style={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--border-color)' }}
+            style={{ 
+              backgroundColor: 'var(--card-bg)', 
+              borderColor: selectedLists.has(setlist.id) ? 'var(--accent)' : 'var(--border-color)',
+              borderWidth: selectedLists.has(setlist.id) ? '2px' : '1px'
+            }}
           >
-            <button onClick={() => setSelectedSetlist(setlist.id)} className="flex-1 text-left">
+            {listSelectionMode && (
+              <button
+                onClick={() => toggleListSelection(setlist.id)}
+                className="p-1"
+                style={{ color: selectedLists.has(setlist.id) ? 'var(--accent)' : 'var(--text-muted)' }}
+              >
+                {selectedLists.has(setlist.id) ? <CheckSquare size={20} /> : <Square size={20} />}
+              </button>
+            )}
+            <button onClick={() => !listSelectionMode && setSelectedSetlist(setlist.id)} className="flex-1 text-left">
               <div className="font-medium">{setlist.name}</div>
               <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
                 {setlist.songs.length} canciones
               </div>
             </button>
-            <button
-              onClick={() => {
-                if (confirm(`¿Eliminar "${setlist.name}"?`)) {
-                  removeSetlist(setlist.id);
-                }
-              }}
-              className="p-2 rounded-lg"
-              style={{ color: '#ef4444' }}
-            >
-              <Trash2 size={16} />
-            </button>
+            {!listSelectionMode && (
+              <button
+                onClick={() => {
+                  if (confirm(`¿Eliminar "${setlist.name}"?`)) {
+                    removeSetlist(setlist.id);
+                  }
+                }}
+                className="p-2 rounded-lg"
+                style={{ color: '#ef4444' }}
+              >
+                <Trash2 size={16} />
+              </button>
+            )}
           </div>
         ))}
 

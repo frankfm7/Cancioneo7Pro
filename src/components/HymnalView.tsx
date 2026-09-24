@@ -85,9 +85,11 @@ export default function HymnalView({ hymnal: initialHymnal, onSelectSong, onBack
   };
 
   const selectAllSongs = () => {
-    if (selectedSongs.size === hymnalSongs.length && hymnalSongs.length > 0) {
+    // Si ya están todas seleccionadas, deseleccionar todas
+    if (selectedSongs.size === hymnalSongs.length) {
       setSelectedSongs(new Set());
     } else {
+      // Seleccionar todas
       setSelectedSongs(new Set(hymnalSongs.map(s => s.id)));
     }
   };
