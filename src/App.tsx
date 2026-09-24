@@ -64,9 +64,11 @@ function AppContent() {
         } else if (songSource.type === 'list') {
           setSelectedSong(null);
           setCurrentPage('setlists');
+          // Mantener selectedSetlistId para que SetlistsPage abra la lista correcta
         } else if (songSource.type === 'order') {
           setSelectedSong(null);
           setCurrentPage('orders');
+          // Mantener selectedOrderId para que OrdersPage abra el orden correcto
         } else {
           setSelectedSong(null);
           setCurrentPage(previousPage);

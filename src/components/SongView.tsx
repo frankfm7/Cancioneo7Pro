@@ -314,16 +314,14 @@ export default function SongView({ song: initialSong, onBack, onEdit, songSource
       <div className="flex-shrink-0 flex items-center gap-2 mb-2">
         <button 
           onClick={onBack}
-          className="px-3 py-1.5 rounded-xl text-xs font-semibold"
-          style={{ 
-            backgroundColor: songSource && (songSource.type === 'list' || songSource.type === 'order') ? 'var(--accent)' : 'var(--bg-tertiary)',
-            color: songSource && (songSource.type === 'list' || songSource.type === 'order') ? 'white' : 'var(--text-primary)'
-          }}
+          className="p-2 rounded-xl"
+          style={{ backgroundColor: 'var(--bg-tertiary)' }}
+          title={songSource?.type === 'list' ? 'Volver a lista' : 
+                 songSource?.type === 'order' ? 'Volver a orden' : 
+                 songSource?.type === 'hymnal' ? 'Volver a cancionero' :
+                 'Volver'}
         >
-          {songSource && songSource.type === 'list' ? 'Volver a lista' : 
-           songSource && songSource.type === 'order' ? 'Volver a orden' : 
-           songSource && songSource.type === 'hymnal' ? 'Volver a cancionero' :
-           'Volver'}
+          <ChevronLeft size={20} />
         </button>
         <div className="flex-1 min-w-0">
           <h1 className="text-base font-bold truncate">{song.title}</h1>
