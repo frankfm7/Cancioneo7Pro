@@ -6,7 +6,7 @@ import { useApp } from '../context/AppContext';
 import { Search, X, Star, Filter, Music, ChevronLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-export default function SearchPage({ onSelectSong }: { onSelectSong: (song: Song) => void }) {
+export default function SearchPage({ onSelectSong, onBack }: { onSelectSong: (song: Song) => void; onBack: () => void }) {
   const { state, toggleFavorite, isFavorite } = useApp();
   const [query, setQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -89,7 +89,7 @@ export default function SearchPage({ onSelectSong }: { onSelectSong: (song: Song
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => window.history.back()}
+            onClick={onBack}
             className="p-2 rounded-xl"
             style={{ backgroundColor: 'var(--bg-tertiary)' }}
           >

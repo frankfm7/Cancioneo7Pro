@@ -41,7 +41,8 @@ export default function SetlistExtractor({ onClose, onExtract }: SetlistExtracto
         },
       });
 
-      const { data: { text } } = await worker.recognize(image);
+      const result = await worker.recognize(image);
+      const text = result.data.text;
       await worker.terminate();
 
       // Parsear el texto en líneas/items
@@ -169,9 +170,9 @@ export default function SetlistExtractor({ onClose, onExtract }: SetlistExtracto
                 onClick={extractText}
                 disabled={extracting}
                 className="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2"
-                style={{ 
-                  backgroundColor: extracting ? 'var(--bg-tertiary)' : 'var(--accent)', 
-                  color: extracting ? 'var(--text-muted)' : 'white' 
+                style={{
+                  backgroundColor: extracting ? 'var(--bg-tertiary)' : 'var(--accent)',
+                  color: extracting ? 'var(--text-muted)' : 'white'
                 }}
               >
                 {extracting ? (

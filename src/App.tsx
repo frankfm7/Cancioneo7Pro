@@ -171,7 +171,7 @@ function AppContent() {
         return <HomePage onSelectSong={(song) => handleSelectSong(song, { type: 'home' })} onSelectHymnal={handleSelectHymnal}
                          onSearch={() => handleNavigate('search')} onAddHymnal={() => setShowAddHymnalModal(true)} />;
       case 'search':
-        return <SearchPage onSelectSong={(song) => handleSelectSong(song, { type: 'search' })} />;
+        return <SearchPage onSelectSong={(song) => handleSelectSong(song, { type: 'search' })} onBack={handleBack} />;
       case 'favorites':
         return <FavoritesPage onSelectSong={(song) => handleSelectSong(song, { type: 'home' })} />;
       case 'setlists':
