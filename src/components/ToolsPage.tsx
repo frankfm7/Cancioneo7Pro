@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ChevronLeft } from 'lucide-react';
 import Metronome from './Metronome';
 import Tuner from './Tuner';
 
@@ -9,9 +10,9 @@ export default function ToolsPage() {
     return (
       <div className="max-w-lg mx-auto">
         <button onClick={() => setActiveTool('menu')}
-                className="mb-4 px-3 py-1.5 rounded-lg text-sm"
+                className="mb-4 px-3 py-1.5 rounded-lg text-sm flex items-center gap-2"
                 style={{ backgroundColor: 'var(--bg-tertiary)' }}>
-          ← Herramientas
+          <ChevronLeft size={16} /> Herramientas
         </button>
         <Metronome />
       </div>
@@ -22,9 +23,9 @@ export default function ToolsPage() {
     return (
       <div className="max-w-lg mx-auto">
         <button onClick={() => setActiveTool('menu')}
-                className="mb-4 px-3 py-1.5 rounded-lg text-sm"
+                className="mb-4 px-3 py-1.5 rounded-lg text-sm flex items-center gap-2"
                 style={{ backgroundColor: 'var(--bg-tertiary)' }}>
-          ← Herramientas
+          <ChevronLeft size={16} /> Herramientas
         </button>
         <Tuner />
       </div>

@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { Song, Setlist, SetlistSong } from '../types';
 import { songs as allSongs } from '../data/songs';
 import { useApp } from '../context/AppContext';
-import { Plus, Trash2, Music, Clock, ChevronUp, ChevronDown, GripVertical, X, MoreVertical, Edit2, CheckSquare, Square, Search, Share2, Download, Camera } from 'lucide-react';
+import { Plus, Trash2, Music, Clock, ChevronUp, ChevronDown, ChevronLeft, GripVertical, X, MoreVertical, Edit2, CheckSquare, Square, Search, Share2, Download, Camera } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import SetlistExtractor from './SetlistExtractor';
 
@@ -259,7 +259,7 @@ export default function SetlistsPage({ onSelectSong, onBack }: { onSelectSong: (
             className="p-2 rounded-xl"
             style={{ backgroundColor: 'var(--bg-tertiary)' }}
           >
-            ←
+            <ChevronLeft size={20} />
           </button>
           <div className="flex-1">
             <h2 className="text-xl font-bold">{currentSetlist.name}</h2>
@@ -579,7 +579,7 @@ export default function SetlistsPage({ onSelectSong, onBack }: { onSelectSong: (
               className="p-2 rounded-lg"
               style={{ backgroundColor: 'var(--bg-tertiary)' }}
             >
-              ←
+              <ChevronLeft size={20} />
             </button>
           )}
           <div>

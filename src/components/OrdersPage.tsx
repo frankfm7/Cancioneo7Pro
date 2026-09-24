@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Order, OrderItem, Song } from '../types';
 import { useApp } from '../context/AppContext';
-import { Plus, ChevronUp, ChevronDown, GripVertical, Camera, MoreVertical, Edit2, Trash2, CheckSquare, Square, X, Music, Search } from 'lucide-react';
+import { Plus, ChevronUp, ChevronDown, ChevronLeft, GripVertical, Camera, MoreVertical, Edit2, Trash2, CheckSquare, Square, X, Music, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { songs as allSongs } from '../data/songs';
 import OrderExtractor from './OrderExtractor';
@@ -268,7 +268,7 @@ export default function OrdersPage({ onSelectSong, onBack }: { onSelectSong: (so
             className="p-2 rounded-xl"
             style={{ backgroundColor: 'var(--bg-tertiary)' }}
           >
-            ←
+            <ChevronLeft size={20} />
           </button>
           <div className="flex-1">
             <h2 className="text-xl font-bold">{selectedOrder.name}</h2>
@@ -579,7 +579,7 @@ export default function OrdersPage({ onSelectSong, onBack }: { onSelectSong: (so
               className="p-2 rounded-lg"
               style={{ backgroundColor: 'var(--bg-tertiary)' }}
             >
-              ←
+              <ChevronLeft size={20} />
             </button>
           )}
           <div>

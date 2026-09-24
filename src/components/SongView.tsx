@@ -333,10 +333,10 @@ export default function SongView({ song: initialSong, onBack, onEdit, songSource
         {songSource && (songSource.type === 'list' || songSource.type === 'order') && (
           <button
             onClick={onBack}
-            className="px-3 py-1.5 rounded-xl text-xs font-semibold"
+            className="px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1"
             style={{ backgroundColor: 'var(--accent)', color: 'white' }}
           >
-            ← Volver a {songSource.type === 'list' ? 'lista' : 'orden'}
+            <ChevronLeft size={14} /> Volver a {songSource.type === 'list' ? 'lista' : 'orden'}
           </button>
         )}
         <div className="flex-1 min-w-0">
