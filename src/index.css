@@ -1,5 +1,38 @@
 @import "tailwindcss";
 
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  overflow: hidden;
+}
+
+@theme {
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-serif: 'Lora', Georgia, serif;
+  --color-primary-50: #f5f3ff;
+  --color-primary-100: #ede9fe;
+  --color-primary-200: #ddd6fe;
+  --color-primary-300: #c4b5fd;
+  --color-primary-400: #a78bfa;
+  --color-primary-500: #8b5cf6;
+  --color-primary-600: #7c3aed;
+  --color-primary-700: #6d28d9;
+  --color-primary-800: #5b21b6;
+  --color-primary-900: #4c1d95;
+  --color-gold-400: #fbbf24;
+  --color-gold-500: #f59e0b;
+  --color-gold-600: #d97706;
+}
+
+/* Smooth transitions for theme changes */
+* {
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
 :root {
   --bg-primary: #ffffff;
   --bg-secondary: #f8fafc;
@@ -33,13 +66,14 @@
 }
 
 * {
-  transition: background-color 0.2s ease, border-color 0.2s ease;
+  box-sizing: border-box;
 }
 
 body {
   font-family: 'Inter', system-ui, sans-serif;
   background-color: var(--bg-primary);
   color: var(--text-primary);
+  transition: background-color 0.3s, color 0.3s;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-size: 16px;
@@ -54,14 +88,16 @@ body {
   font-weight: 700;
 }
 
+/* Make buttons and inputs larger */
 button {
   font-size: 14px;
 }
 
 input, select, textarea {
-  font-size: 16px;
+  font-size: 16px; /* Prevents zoom on iOS */
 }
 
+/* Better card shadows */
 .card-elegant {
   box-shadow: 0 4px 20px rgba(0,0,0,0.08);
   border-radius: 20px;
@@ -71,6 +107,19 @@ input, select, textarea {
   box-shadow: 0 4px 20px rgba(0,0,0,0.4);
 }
 
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 3px;
+}
+
+/* Chord styling */
 .chord {
   color: var(--accent);
   font-weight: 800;
@@ -81,6 +130,7 @@ input, select, textarea {
   text-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
+/* Chorus styling */
 .chorus-line {
   border-left: 3px solid var(--gold);
   padding-left: 12px;
@@ -89,6 +139,7 @@ input, select, textarea {
   border-radius: 0 4px 4px 0;
 }
 
+/* Section headers */
 .section-header {
   font-size: 0.7em;
   font-weight: 700;
@@ -99,6 +150,7 @@ input, select, textarea {
   margin-bottom: 4px;
 }
 
+/* Animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
@@ -117,6 +169,7 @@ input, select, textarea {
   animation: pulse-beat 0.3s ease-out;
 }
 
+/* Metronome visual */
 .metro-dot {
   width: 16px;
   height: 16px;
