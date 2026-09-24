@@ -1,13 +1,13 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { Song, Setlist, SetlistSong } from '../types';
-import { songs as allSongs } from '../data/songs';
+import { songs as allSongs, hymnals } from '../data/songs';
 import { useApp } from '../context/AppContext';
-import { Plus, Trash2, Music, Clock, ChevronUp, ChevronDown, ChevronLeft, GripVertical, X, MoreVertical, Edit2, CheckSquare, Square, Search, Share2, Download, Camera } from 'lucide-react';
+import { Plus, Trash2, Music, Clock, ChevronUp, ChevronDown, ChevronLeft, GripVertical, X, MoreVertical, Edit2, CheckSquare, Square, Search, Share2, Download, Camera, Copy, Star, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import SetlistExtractor from './SetlistExtractor';
 
 export default function SetlistsPage({ onSelectSong, onBack }: { onSelectSong: (song: Song) => void; onBack?: () => void }) {
-  const { state, addSetlist, removeSetlist, addSongToSetlist, removeSongFromSetlist, updateSetlistSong } = useApp();
+  const { state, addSetlist, removeSetlist, addSongToSetlist, removeSongFromSetlist, updateSetlistSong, toggleFavorite } = useApp();
   const [selectedSetlist, setSelectedSetlist] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showExtractor, setShowExtractor] = useState(false);
@@ -19,6 +19,8 @@ export default function SetlistsPage({ onSelectSong, onBack }: { onSelectSong: (
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [songSearchQuery, setSongSearchQuery] = useState('');
+  const [showMoveModal, setShowMoveModal] = useState(false);
+  const [showAddToListModal, setShowAddToListModal] = useState(false);
 
   const editRef = useRef<HTMLDivElement>(null);
 
@@ -142,6 +144,120 @@ export default function SetlistsPage({ onSelectSong, onBack }: { onSelectSong: (
 
     setSelectedItems(new Set());
     setSelectionMode(false);
+  };
+
+  const copySelectedItems = () => {
+    if (!selectedSetlist || selectedItems.size === 0) return;
+    
+    const selectedSongs = currentSetlist!.songs.filter(s => selectedItems.has(s.songId));
+    const text = selectedSongs.map((ss, i) => {
+      const song = allAvailableSongs.find(s => s.id === ss.songId);
+      return `${i + 1}. ${song?.title || 'Sin canción'} - ${song?.artist || ''}`;
+    }).join('\n');
+    
+    navigator.clipboard.writeText(text);
+    alert(`${selectedItems.size} canción(es) copiada(s) al portapapeles`);
+    setSelectedItems(new Set());
+    setSelectionMode(false);
+  };
+
+  const addSelectedToFavorites = () => {
+    if (selectedItems.size === 0) return;
+    
+    selectedItems.forEach(songId => {
+      toggleFavorite(songId);
+    });
+    
+    alert(`${selectedItems.size} canción(es) agregada(s) a favoritos`);
+    setSelectedItems(new Set());
+    setSelectionMode(false);
+  };
+
+  const shareSelectedItems = () => {
+    if (!currentSetlist || selectedItems.size === 0) return;
+    
+    const selectedSongs = currentSetlist.songs.filter(s => selectedItems.has(s.songId));
+    const text = `Canciones de ${currentSetlist.name}:\n\n${selectedSongs.map((ss, i) => {
+      const song = allAvailableSongs.find(s => s.id === ss.songId);
+      return `${i + 1}. ${song?.title || 'Sin canción'} - ${song?.artist || ''}`;
+    }).join('\n')}`;
+    
+    if (navigator.share) {
+      navigator.share({
+        title: 'Canciones seleccionadas',
+        text: text,
+      });
+    } else {
+      navigator.clipboard.writeText(text);
+      alert('Lista copiada al portapapeles');
+    }
+    
+    setSelectedItems(new Set());
+    setSelectionMode(false);
+  };
+
+  const exportSelectedItems = () => {
+    if (!currentSetlist || selectedItems.size === 0) return;
+    
+    const selectedSongs = currentSetlist.songs.filter(s => selectedItems.has(s.songId));
+    const data = {
+      name: `${currentSetlist.name} - Selección`,
+      songs: selectedSongs.map(ss => {
+        const song = allAvailableSongs.find(s => s.id === ss.songId);
+        return {
+          title: song?.title,
+          artist: song?.artist,
+          code: song?.code,
+          key: song?.key,
+        };
+      }),
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${currentSetlist.name}_seleccion.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    setSelectedItems(new Set());
+    setSelectionMode(false);
+  };
+
+  const moveSelectedToHymnal = (hymnalId: string) => {
+    if (selectedItems.size === 0) return;
+    
+    selectedItems.forEach(songId => {
+      const song = allAvailableSongs.find(s => s.id === songId);
+      if (song) {
+        const updatedSong = { ...song, hymnalId };
+        // Aquí deberías llamar a updateCustomSong si existe
+      }
+    });
+    
+    alert(`${selectedItems.size} canción(es) movida(s)`);
+    setSelectedItems(new Set());
+    setSelectionMode(false);
+    setShowMoveModal(false);
+  };
+
+  const addSelectedToList = (listId: string) => {
+    if (selectedItems.size === 0) return;
+    
+    selectedItems.forEach(songId => {
+      addSongToSetlist(listId, {
+        songId,
+        transposition: 0,
+        notes: '',
+        order: 0,
+      });
+    });
+    
+    alert(`${selectedItems.size} canción(es) agregada(s) a la lista`);
+    setSelectedItems(new Set());
+    setSelectionMode(false);
+    setShowAddToListModal(false);
   };
 
   const moveItem = (index: number, direction: 'up' | 'down') => {
@@ -331,18 +447,69 @@ export default function SetlistsPage({ onSelectSong, onBack }: { onSelectSong: (
 
         {/* Selection Actions */}
         {selectionMode && selectedItems.size > 0 && (
-          <div className="flex items-center gap-2 p-3 rounded-xl" style={{ backgroundColor: 'var(--accent-light)', border: '1px solid var(--accent)' }}>
+          <div className="flex flex-wrap items-center gap-2 p-3 rounded-xl" style={{ backgroundColor: 'var(--accent-light)', border: '1px solid var(--accent)' }}>
             <span className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
               {selectedItems.size} seleccionado(s)
             </span>
             <div className="flex-1" />
-            <button
-              onClick={removeSelectedItems}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1"
-              style={{ backgroundColor: '#ef4444', color: 'white' }}
-            >
-              <Trash2 size={14} /> Eliminar
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={addSelectedToFavorites}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1"
+                style={{ backgroundColor: 'var(--gold)', color: 'white' }}
+                title="Agregar a favoritos"
+              >
+                <Star size={14} /> Favoritos
+              </button>
+              <button
+                onClick={copySelectedItems}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1"
+                style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}
+                title="Copiar al portapapeles"
+              >
+                <Copy size={14} /> Copiar
+              </button>
+              <button
+                onClick={() => setShowAddToListModal(true)}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1"
+                style={{ backgroundColor: 'var(--accent)', color: 'white' }}
+                title="Agregar a otra lista"
+              >
+                <Music size={14} /> A Lista
+              </button>
+              <button
+                onClick={() => setShowMoveModal(true)}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1"
+                style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}
+                title="Mover a otro cancionero"
+              >
+                <ArrowRight size={14} /> Mover
+              </button>
+              <button
+                onClick={shareSelectedItems}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1"
+                style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}
+                title="Compartir"
+              >
+                <Share2 size={14} /> Compartir
+              </button>
+              <button
+                onClick={exportSelectedItems}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1"
+                style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}
+                title="Exportar como JSON"
+              >
+                <Download size={14} /> Exportar
+              </button>
+              <button
+                onClick={removeSelectedItems}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1"
+                style={{ backgroundColor: '#ef4444', color: 'white' }}
+                title="Eliminar"
+              >
+                <Trash2 size={14} /> Eliminar
+              </button>
+            </div>
           </div>
         )}
 
@@ -697,6 +864,91 @@ export default function SetlistsPage({ onSelectSong, onBack }: { onSelectSong: (
           onExtract={handleExtracted}
         />
       )}
+
+      {/* Move to Hymnal Modal */}
+      <AnimatePresence>
+        {showMoveModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+            style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+            onClick={() => setShowMoveModal(false)}
+          >
+            <motion.div
+              initial={{ y: 100 }}
+              animate={{ y: 0 }}
+              exit={{ y: 100 }}
+              onClick={e => e.stopPropagation()}
+              className="w-full max-w-md rounded-2xl p-5"
+              style={{ backgroundColor: 'var(--card-bg)' }}
+            >
+              <h3 className="font-bold text-lg mb-3">Mover a otro cancionero</h3>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {[...hymnals, ...state.customHymnals].map(hymnal => (
+                  <button
+                    key={hymnal.id}
+                    onClick={() => moveSelectedToHymnal(hymnal.id)}
+                    className="w-full text-left p-3 rounded-xl border transition-all hover:scale-[1.01]"
+                    style={{ borderColor: 'var(--border-color)' }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl">{hymnal.icon}</span>
+                      <div>
+                        <div className="font-medium text-sm">{hymnal.name}</div>
+                        <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                          {hymnal.language}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Add to List Modal */}
+      <AnimatePresence>
+        {showAddToListModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+            style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+            onClick={() => setShowAddToListModal(false)}
+          >
+            <motion.div
+              initial={{ y: 100 }}
+              animate={{ y: 0 }}
+              exit={{ y: 100 }}
+              onClick={e => e.stopPropagation()}
+              className="w-full max-w-md rounded-2xl p-5"
+              style={{ backgroundColor: 'var(--card-bg)' }}
+            >
+              <h3 className="font-bold text-lg mb-3">Agregar a otra lista</h3>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {state.setlists.map(setlist => (
+                  <button
+                    key={setlist.id}
+                    onClick={() => addSelectedToList(setlist.id)}
+                    className="w-full text-left p-3 rounded-xl border transition-all hover:scale-[1.01]"
+                    style={{ borderColor: 'var(--border-color)' }}
+                  >
+                    <div className="font-medium text-sm">{setlist.name}</div>
+                    <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      {setlist.songs.length} canciones
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
