@@ -53,7 +53,18 @@ export default function HymnalView({ hymnal: initialHymnal, onSelectSong, onBack
   }, [onBack]);
 
   const hymnalSongs = useMemo(() => {
-    return [...allSongs, ...state.customSongs].filter(s => s.hymnalId === hymnal.id);
+    // Crear un mapa de canciones personalizadas por ID
+    const customSongsMap = new Map(state.customSongs.map(s => [s.id, s]));
+    
+    // Combinar: usar versión personalizada si existe, sino usar predeterminada
+    const combinedSongs = allSongs.map(song => customSongsMap.get(song.id) || song);
+    
+    // Agregar canciones personalizadas que no están en las predeterminadas
+    const defaultSongIds = new Set(allSongs.map(s => s.id));
+    const newCustomSongs = state.customSongs.filter(s => !defaultSongIds.has(s.id));
+    
+    // Filtrar por himnario
+    return [...combinedSongs, ...newCustomSongs].filter(s => s.hymnalId === hymnal.id);
   }, [hymnal.id, state.customSongs]);
 
   const handleDelete = () => {
