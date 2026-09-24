@@ -105,5 +105,25 @@ Porque todo lo que hay dentro de mí
 //A              Bm
 necesita ser cambiado, Señor`,
     notes: ''
+  },
+  {
+    id: 'b1',
+    title: 'Castillo Fuerte',
+    artist: 'Martín Lutero',
+    code: 'B1',
+    number: 1,
+    hymnalId: 'bautista',
+    key: 'C',
+    timeSignature: '4/4',
+    bpm: 100,
+    language: 'Castellano',
+    categories: ['Himno'],
+    sections: [],
+    lyrics: `VERSO 1
+//C          G          C
+Castillo fuerte es nuestro Dios
+//F          C          G
+baluarte y espada`,
+    notes: ''
   }
 ];
