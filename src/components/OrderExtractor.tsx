@@ -42,7 +42,7 @@ export default function OrderExtractor({ onClose, onExtract }: OrderExtractorPro
       });
 
       const response = await worker.recognize(image);
-      const text = response. ;
+      const text = response.data.text;
       await worker.terminate();
 
       // Parsear el texto en líneas/items
