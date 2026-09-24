@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { Song, Hymnal } from '../types';
 import { songs as allSongs } from '../data/songs';
 import { useApp } from '../context/AppContext';
-import { ChevronLeft, Star, Music, MoreVertical, Edit, Trash2, Download, Share2, Plus, CheckSquare, Square } from 'lucide-react';
+import { ChevronLeft, Star, Music, MoreVertical, Edit, Trash2, Download, Share2, Plus, CheckSquare, Square, Copy } from 'lucide-react';
 import EditHymnalModal from './EditHymnalModal';
 import AddSongModal from './AddSongModal';
 
@@ -17,6 +17,7 @@ export default function HymnalView({ hymnal: initialHymnal, onSelectSong, onBack
   const [showAddSongModal, setShowAddSongModal] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedSongs, setSelectedSongs] = useState<Set<string>>(new Set());
+  const [showSelectionMenu, setShowSelectionMenu] = useState(false);
 
   // Obtener el himnario actualizado del estado
   const hymnal = useMemo(() => {
@@ -30,6 +31,9 @@ export default function HymnalView({ hymnal: initialHymnal, onSelectSong, onBack
       const target = event.target as HTMLElement;
       if (!target.closest('[data-menu]')) {
         setShowMenu(false);
+      }
+      if (!target.closest('[data-selection-menu]')) {
+        setShowSelectionMenu(false);
       }
     };
 
@@ -86,6 +90,59 @@ export default function HymnalView({ hymnal: initialHymnal, onSelectSong, onBack
     } else {
       setSelectedSongs(new Set(hymnalSongs.map(s => s.id)));
     }
+  };
+
+  const copySelectedSongs = () => {
+    if (selectedSongs.size === 0) return;
+    const selectedSongsList = hymnalSongs.filter(s => selectedSongs.has(s.id));
+    const text = selectedSongsList.map((song, i) => `${i + 1}. ${song.title} - ${song.artist}`).join('\n');
+    navigator.clipboard.writeText(text);
+    alert(`${selectedSongs.size} canción(es) copiada(s) al portapapeles`);
+  };
+
+  const addSelectedToFavorites = () => {
+    if (selectedSongs.size === 0) return;
+    selectedSongs.forEach(songId => {
+      if (!state.favorites.includes(songId)) {
+        toggleFavorite(songId);
+      }
+    });
+    alert(`${selectedSongs.size} canción(es) agregada(s) a favoritos`);
+  };
+
+  const shareSelectedSongs = () => {
+    if (selectedSongs.size === 0) return;
+    const selectedSongsList = hymnalSongs.filter(s => selectedSongs.has(s.id));
+    const text = `Canciones de ${hymnal.name}:\n\n${selectedSongsList.map((song, i) => `${i + 1}. ${song.title} - ${song.artist}`).join('\n')}`;
+    
+    if (navigator.share) {
+      navigator.share({ title: 'Canciones seleccionadas', text });
+    } else {
+      navigator.clipboard.writeText(text);
+      alert('Lista copiada al portapapeles para compartir');
+    }
+  };
+
+  const exportSelectedSongs = () => {
+    if (selectedSongs.size === 0) return;
+    const selectedSongsList = hymnalSongs.filter(s => selectedSongs.has(s.id));
+    const data = {
+      hymnalName: hymnal.name,
+      selectedSongs: selectedSongsList.map(song => ({
+        title: song.title,
+        artist: song.artist,
+        code: song.code,
+        key: song.key,
+      })),
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${hymnal.name}_seleccion.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleExport = () => {
@@ -233,18 +290,80 @@ export default function HymnalView({ hymnal: initialHymnal, onSelectSong, onBack
           >
             {selectedSongs.size === hymnalSongs.length ? 'Deseleccionar todo' : 'Seleccionar todo'}
           </button>
-          <span className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>
-            {selectedSongs.size} seleccionada(s)
-          </span>
-          <div className="flex-1" />
           {selectedSongs.size > 0 && (
-            <button
-              onClick={handleDeleteSelectedSongs}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1"
-              style={{ backgroundColor: '#ef4444', color: 'white' }}
-            >
-              <Trash2 size={14} /> Eliminar
-            </button>
+            <>
+              <span className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>
+                {selectedSongs.size} seleccionada(s)
+              </span>
+              <div className="flex-1" />
+              <div className="relative" data-selection-menu>
+                <button
+                  onClick={() => setShowSelectionMenu(!showSelectionMenu)}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2"
+                  style={{ backgroundColor: 'var(--accent)', color: 'white' }}
+                >
+                  <MoreVertical size={16} /> Opciones
+                </button>
+                
+                {showSelectionMenu && (
+                  <div
+                    className="absolute right-0 top-full mt-2 w-56 rounded-xl shadow-lg overflow-hidden z-50"
+                    style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)' }}
+                  >
+                    <button
+                      onClick={() => {
+                        addSelectedToFavorites();
+                        setShowSelectionMenu(false);
+                      }}
+                      className="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:opacity-80"
+                      style={{ color: 'var(--text-primary)' }}
+                    >
+                      <Star size={16} style={{ color: 'var(--gold)' }} /> Agregar a favoritos
+                    </button>
+                    <button
+                      onClick={() => {
+                        copySelectedSongs();
+                        setShowSelectionMenu(false);
+                      }}
+                      className="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:opacity-80 border-t"
+                      style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
+                    >
+                      <Copy size={16} /> Copiar al portapapeles
+                    </button>
+                    <button
+                      onClick={() => {
+                        shareSelectedSongs();
+                        setShowSelectionMenu(false);
+                      }}
+                      className="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:opacity-80 border-t"
+                      style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
+                    >
+                      <Share2 size={16} /> Compartir
+                    </button>
+                    <button
+                      onClick={() => {
+                        exportSelectedSongs();
+                        setShowSelectionMenu(false);
+                      }}
+                      className="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:opacity-80 border-t"
+                      style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
+                    >
+                      <Download size={16} /> Exportar como JSON
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleDeleteSelectedSongs();
+                        setShowSelectionMenu(false);
+                      }}
+                      className="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:opacity-80 border-t"
+                      style={{ color: '#ef4444', borderColor: 'var(--border-color)' }}
+                    >
+                      <Trash2 size={16} /> Eliminar seleccionados
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </div>
       )}

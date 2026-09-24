@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Order, OrderItem, Song } from '../types';
 import { useApp } from '../context/AppContext';
-import { Plus, ChevronUp, ChevronDown, ChevronLeft, GripVertical, Camera, MoreVertical, Edit2, Trash2, CheckSquare, Square, X, Music, Search } from 'lucide-react';
+import { Plus, ChevronUp, ChevronDown, ChevronLeft, GripVertical, Camera, MoreVertical, Edit2, Trash2, CheckSquare, Square, X, Music, Search, Copy, Share2, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { songs as allSongs } from '../data/songs';
 import OrderExtractor from './OrderExtractor';
@@ -20,6 +20,7 @@ export default function OrdersPage({ onSelectSong, onBack }: { onSelectSong: (so
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [songSearchQuery, setSongSearchQuery] = useState('');
+  const [showSelectionMenu, setShowSelectionMenu] = useState(false);
 
   const orders = state.orders || [];
   const allAvailableSongs = [...allSongs, ...(state.customSongs || [])];
@@ -67,16 +68,19 @@ export default function OrdersPage({ onSelectSong, onBack }: { onSelectSong: (so
       if (!target.closest('[data-item-menu]')) {
         setOpenMenuId(null);
       }
+      if (!target.closest('[data-selection-menu]')) {
+        setShowSelectionMenu(false);
+      }
     };
 
-    if (openMenuId) {
+    if (openMenuId || showSelectionMenu) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [openMenuId]);
+  }, [openMenuId, showSelectionMenu]);
 
   const createOrder = () => {
     const newOrder: Order = {
@@ -245,6 +249,84 @@ export default function OrdersPage({ onSelectSong, onBack }: { onSelectSong: (so
     setSelectedItems(newSelected);
   };
 
+  const selectAllItems = () => {
+    if (!selectedOrder) return;
+    if (selectedItems.size === selectedOrder.items.length) {
+      setSelectedItems(new Set());
+    } else {
+      setSelectedItems(new Set(selectedOrder.items.map(item => item.id)));
+    }
+  };
+
+  const copySelectedItems = () => {
+    if (!selectedOrder || selectedItems.size === 0) return;
+    const selectedItemsList = selectedOrder.items.filter(item => selectedItems.has(item.id));
+    const text = selectedItemsList.map((item, i) => {
+      if (item.type === 'song') {
+        const song = getItemSong(item);
+        return `${i + 1}. ${song?.title || 'Sin canción'} - ${song?.artist || ''}`;
+      } else {
+        return `${i + 1}. ${item.content}`;
+      }
+    }).join('\n');
+    navigator.clipboard.writeText(text);
+    alert(`${selectedItems.size} elemento(s) copiado(s) al portapapeles`);
+  };
+
+  const shareSelectedItems = () => {
+    if (!selectedOrder || selectedItems.size === 0) return;
+    const selectedItemsList = selectedOrder.items.filter(item => selectedItems.has(item.id));
+    const text = `Elementos de ${selectedOrder.name}:\n\n${selectedItemsList.map((item, i) => {
+      if (item.type === 'song') {
+        const song = getItemSong(item);
+        return `${i + 1}. ${song?.title || 'Sin canción'} - ${song?.artist || ''}`;
+      } else {
+        return `${i + 1}. ${item.content}`;
+      }
+    }).join('\n')}`;
+    
+    if (navigator.share) {
+      navigator.share({ title: 'Elementos seleccionados', text });
+    } else {
+      navigator.clipboard.writeText(text);
+      alert('Lista copiada al portapapeles para compartir');
+    }
+  };
+
+  const exportSelectedItems = () => {
+    if (!selectedOrder || selectedItems.size === 0) return;
+    const selectedItemsList = selectedOrder.items.filter(item => selectedItems.has(item.id));
+    const data = {
+      orderName: selectedOrder.name,
+      selectedItems: selectedItemsList.map(item => {
+        if (item.type === 'song') {
+          const song = getItemSong(item);
+          return {
+            type: 'song',
+            title: song?.title,
+            artist: song?.artist,
+            code: song?.code,
+            key: song?.key,
+          };
+        } else {
+          return {
+            type: 'text',
+            content: item.content,
+            notes: item.notes,
+          };
+        }
+      }),
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${selectedOrder.name}_seleccion.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const filteredSongs = allAvailableSongs.filter(song =>
     song.title.toLowerCase().includes(songSearchQuery.toLowerCase()) ||
     song.artist.toLowerCase().includes(songSearchQuery.toLowerCase()) ||
@@ -302,19 +384,80 @@ export default function OrdersPage({ onSelectSong, onBack }: { onSelectSong: (so
         </div>
 
         {/* Selection Actions */}
-        {selectionMode && selectedItems.size > 0 && (
+        {selectionMode && (
           <div className="flex items-center gap-2 p-3 rounded-xl" style={{ backgroundColor: 'var(--accent-light)', border: '1px solid var(--accent)' }}>
-            <span className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
-              {selectedItems.size} seleccionado(s)
-            </span>
-            <div className="flex-1" />
             <button
-              onClick={removeSelectedItems}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1"
-              style={{ backgroundColor: '#ef4444', color: 'white' }}
+              onClick={selectAllItems}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+              style={{ backgroundColor: 'var(--accent)', color: 'white' }}
             >
-              <Trash2 size={14} /> Eliminar
+              {selectedItems.size === selectedOrder.items.length ? 'Deseleccionar todo' : 'Seleccionar todo'}
             </button>
+            {selectedItems.size > 0 && (
+              <>
+                <span className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
+                  {selectedItems.size} seleccionado(s)
+                </span>
+                <div className="flex-1" />
+                <div className="relative" data-selection-menu>
+                  <button
+                    onClick={() => setShowSelectionMenu(!showSelectionMenu)}
+                    className="px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2"
+                    style={{ backgroundColor: 'var(--accent)', color: 'white' }}
+                  >
+                    <MoreVertical size={16} /> Opciones
+                  </button>
+                  
+                  {showSelectionMenu && (
+                    <div
+                      className="absolute right-0 top-full mt-2 w-56 rounded-xl shadow-lg overflow-hidden z-50"
+                      style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)' }}
+                    >
+                      <button
+                        onClick={() => {
+                          copySelectedItems();
+                          setShowSelectionMenu(false);
+                        }}
+                        className="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:opacity-80"
+                        style={{ color: 'var(--text-primary)' }}
+                      >
+                        <Copy size={16} /> Copiar al portapapeles
+                      </button>
+                      <button
+                        onClick={() => {
+                          shareSelectedItems();
+                          setShowSelectionMenu(false);
+                        }}
+                        className="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:opacity-80 border-t"
+                        style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
+                      >
+                        <Share2 size={16} /> Compartir
+                      </button>
+                      <button
+                        onClick={() => {
+                          exportSelectedItems();
+                          setShowSelectionMenu(false);
+                        }}
+                        className="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:opacity-80 border-t"
+                        style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
+                      >
+                        <Download size={16} /> Exportar como JSON
+                      </button>
+                      <button
+                        onClick={() => {
+                          removeSelectedItems();
+                          setShowSelectionMenu(false);
+                        }}
+                        className="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:opacity-80 border-t"
+                        style={{ color: '#ef4444', borderColor: 'var(--border-color)' }}
+                      >
+                        <Trash2 size={16} /> Eliminar seleccionados
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
 
